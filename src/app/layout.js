@@ -1,17 +1,18 @@
+"use client";
+
 import './globals.css';
 import { Inter } from 'next/font/google';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/providers/theme-provider';
+import { usePathname } from 'next/navigation';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata = {
-  title: 'Fórmula E - Aposta ao Vivo',
-  description: 'Revolucione sua experiência na Fórmula E com apostas ao vivo!',
-};
-
 export default function RootLayout({ children }) {
+  const pathname = usePathname();
+  const isLivePage = pathname === '/live';
+
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${inter.className}`}>
@@ -21,9 +22,9 @@ export default function RootLayout({ children }) {
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
+          {!isLivePage && <Header />}
           <main>{children}</main>
-          <Footer />
+          {!isLivePage && <Footer />}
         </ThemeProvider>
       </body>
     </html>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 import MonacoE from '@/public/images/monaco-e-prix.webp';
 import TradePoints from '@/public/images/trade-points.jpeg';
@@ -98,12 +99,14 @@ export default function HeroCarousel() {
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 6, ease: 'easeInOut', repeat: Infinity, delay: 0.4 }}
             >
-              <Button
-                size="lg"
-                className="bg-primary hover:bg-primary/90 text-white"
-              >
-                {carouselItems[currentSlide].cta} <ChevronRight className="ml-2" />
-              </Button>
+              <Link href="/live">
+                <Button
+                  size="lg"
+                  className="bg-primary hover:bg-primary/90 text-white"
+                >
+                  {carouselItems[currentSlide].cta} <ChevronRight className="ml-2" />
+                </Button>
+              </Link>
             </motion.div>
           </motion.div>
         </AnimatePresence>
