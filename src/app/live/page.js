@@ -120,22 +120,22 @@ export default function LivePage() {
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      // Create new user profile
+      // Cria novo perfil de usuário
       await setDoc(userRef, {
         displayName: user.displayName,
         email: user.email,
         photoURL: user.photoURL,
-        points: 1000, // Initial points for new users
+        points: 1000, // Pontos iniciais para novos usuários
         createdAt: serverTimestamp(),
       });
     } else {
-      // User profile exists, update last login
+      // Perfil de usuário existe, atualiza último login
       await updateDoc(userRef, {
         lastLogin: serverTimestamp(),
       });
     }
 
-    // Fetch and set user points
+    // Busca e define os pontos do usuário
     const updatedUserSnap = await getDoc(userRef);
     const userData = updatedUserSnap.data();
     setUserPoints(userData.points);
@@ -154,7 +154,7 @@ export default function LivePage() {
         setLoginAction(null);
       }
     } catch (error) {
-      console.error("Error signing in with Google", error);
+      console.error("Erro ao entrar com o Google", error);
     }
   };
 
@@ -193,7 +193,7 @@ export default function LivePage() {
         nextLapBetOptionsSnapshot.docs.map((doc) => doc.data())
       );
     } catch (error) {
-      console.error("Error fetching initial data:", error);
+      console.error("Erro ao buscar dados iniciais:", error);
     }
   }, []);
 
@@ -310,7 +310,10 @@ export default function LivePage() {
         id: doc.id,
         ...doc.data(),
       }));
-      setUserBets((prevBets) => [...prevBets.filter(bet => bet.type.startsWith('nextLap')), ...bets]);
+      setUserBets((prevBets) => [
+        ...prevBets.filter((bet) => bet.type.startsWith("nextLap")),
+        ...bets,
+      ]);
     });
 
     const unsubNextLapBets = onSnapshot(nextLapBetsQuery, (snapshot) => {
@@ -318,7 +321,10 @@ export default function LivePage() {
         id: doc.id,
         ...doc.data(),
       }));
-      setUserBets((prevBets) => [...prevBets.filter(bet => !bet.type.startsWith('nextLap')), ...nextLapBets]);
+      setUserBets((prevBets) => [
+        ...prevBets.filter((bet) => !bet.type.startsWith("nextLap")),
+        ...nextLapBets,
+      ]);
     });
 
     return () => {
@@ -344,8 +350,8 @@ export default function LivePage() {
         });
         setNewMessage("");
       } catch (error) {
-        console.error("Error sending message:", error);
-        // You might want to show an error message to the user here
+        console.error("Erro ao enviar mensagem:", error);
+        // Você pode querer exibir uma mensagem de erro para o usuário aqui
       }
     }
   };
@@ -370,20 +376,25 @@ export default function LivePage() {
       };
 
       try {
-        // Add the new bet to Firestore
+        // Adiciona a nova aposta no Firestore
         await addDoc(
-          collection(db, "races", currentRaceId, isNextLapBet ? "nextLapBets" : "userBets"),
+          collection(
+            db,
+            "races",
+            currentRaceId,
+            isNextLapBet ? "nextLapBets" : "userBets"
+          ),
           newBet
         );
 
-        // Update user points in Firestore and locally
+        // Atualiza os pontos do usuário no Firestore e localmente
         const userRef = doc(db, "users", user.uid);
         await updateDoc(userRef, {
           points: increment(-Number(betAmount)),
         });
         setUserPoints((prevPoints) => prevPoints - Number(betAmount));
 
-        // Update betting trends in Firestore
+        // Atualiza as tendências de apostas no Firestore
         const trendDocRef = doc(
           db,
           "races",
@@ -395,56 +406,61 @@ export default function LivePage() {
           bets: increment(Number(betAmount)),
         });
 
-        // Reset bet inputs
+        // Reseta os inputs da aposta
         setBetType("");
         setBetDriver("");
         setBetAmount("");
         setBetMultiplier(1);
       } catch (error) {
-        console.error("Error placing bet:", error);
-        // You might want to show an error message to the user here
+        console.error("Erro ao fazer a aposta:", error);
+        // Você pode querer exibir uma mensagem de erro para o usuário aqui
       }
     }
   };
 
-  const calculateBetMultiplier = useCallback((betType, driverName) => {
-    const driver = drivers.find((d) => d.name === driverName);
-    if (!driver || !betType) return 1;
+  const calculateBetMultiplier = useCallback(
+    (betType, driverName) => {
+      const driver = drivers.find((d) => d.name === driverName);
+      if (!driver || !betType) return 1;
 
-    let baseDifficulty = 1;
-    const isNextLapBet = betType.startsWith("nextLap");
-    const actualBetType = isNextLapBet ? betType.slice(7).toLowerCase() : betType;
+      let baseDifficulty = 1;
+      const isNextLapBet = betType.startsWith("nextLap");
+      const actualBetType = isNextLapBet
+        ? betType.slice(7).toLowerCase()
+        : betType;
 
-    switch (actualBetType) {
-      case "winner":
-        baseDifficulty = 10 - (driver.position / drivers.length) * 5;
-        break;
-      case "fastestlap":
-        baseDifficulty = 5;
-        break;
-      case "podiumfinish":
-        baseDifficulty = 7 - (driver.position / drivers.length) * 3;
-        break;
-      case "topfive":
-        baseDifficulty = 5 - (driver.position / drivers.length) * 2;
-        break;
-      case "overtakes":
-        baseDifficulty = 4;
-        break;
-      case "energyefficiency":
-        baseDifficulty = 3;
-        break;
-      default:
-        baseDifficulty = 2;
-    }
+      switch (actualBetType) {
+        case "winner":
+          baseDifficulty = 10 - (driver.position / drivers.length) * 5;
+          break;
+        case "fastestlap":
+          baseDifficulty = 5;
+          break;
+        case "podiumfinish":
+          baseDifficulty = 7 - (driver.position / drivers.length) * 3;
+          break;
+        case "topfive":
+          baseDifficulty = 5 - (driver.position / drivers.length) * 2;
+          break;
+        case "overtakes":
+          baseDifficulty = 4;
+          break;
+        case "energyefficiency":
+          baseDifficulty = 3;
+          break;
+        default:
+          baseDifficulty = 2;
+      }
 
-    if (isNextLapBet) {
-      baseDifficulty *= 1.5; // Increase difficulty for next lap bets
-    }
+      if (isNextLapBet) {
+        baseDifficulty *= 1.5; // Aumenta a dificuldade para apostas na próxima volta
+      }
 
-    const randomFactor = 0.8 + Math.random() * 0.4; // Random factor between 0.8 and 1.2
-    return Math.max(1.1, +(baseDifficulty * randomFactor).toFixed(2));
-  }, [drivers]);
+      const randomFactor = 0.8 + Math.random() * 0.4; // Fator aleatório entre 0.8 e 1.2
+      return Math.max(1.1, +(baseDifficulty * randomFactor).toFixed(2));
+    },
+    [drivers]
+  );
 
   useEffect(() => {
     if (betType && betDriver) {
@@ -510,12 +526,12 @@ export default function LivePage() {
     <Dialog open={showFinalDashboard} onOpenChange={setShowFinalDashboard}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Race Dashboard</DialogTitle>
+          <DialogTitle>Painel da Corrida</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Final Standings</CardTitle>
+              <CardTitle>Resultados Finais</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[300px]">
@@ -536,7 +552,7 @@ export default function LivePage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Lap Time Progression</CardTitle>
+              <CardTitle>Progressão do Tempo de Volta</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -563,7 +579,7 @@ export default function LivePage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Energy Management</CardTitle>
+              <CardTitle>Gestão de Energia</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -573,11 +589,15 @@ export default function LivePage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="energyUsed" fill="#8884d8" name="Energy Used" />
+                  <Bar
+                    dataKey="energyUsed"
+                    fill="#8884d8"
+                    name="Energia Usada"
+                  />
                   <Bar
                     dataKey="regeneration"
                     fill="#82ca9d"
-                    name="Energy Regenerated"
+                    name="Energia Regenerada"
                   />
                 </RechartsBarChart>
               </ResponsiveContainer>
@@ -585,7 +605,7 @@ export default function LivePage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Overtaking Analysis</CardTitle>
+              <CardTitle>Análise de Ultrapassagens</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -595,11 +615,15 @@ export default function LivePage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="overtakes" fill="#8884d8" name="Overtakes" />
+                  <Bar
+                    dataKey="overtakes"
+                    fill="#8884d8"
+                    name="Ultrapassagens"
+                  />
                   <Bar
                     dataKey="defensiveActions"
                     fill="#82ca9d"
-                    name="Defensive Actions"
+                    name="Ações Defensivas"
                   />
                 </RechartsBarChart>
               </ResponsiveContainer>
@@ -616,12 +640,12 @@ export default function LivePage() {
     const latestLap = lapData[lapData.length - 1];
     return (
       <div>
-        <h3>Car Data (Lap {latestLap.lap})</h3>
+        <h3>Dados do Carro (Volta {latestLap.lap})</h3>
         {latestLap.drivers.map((driver) => (
           <div key={driver.name}>
             <p>
-              {driver.name}: Speed: {driver.speed} km/h, Battery:{" "}
-              {driver.battery}%, Energy: {driver.energy} kWh
+              {driver.name}: Velocidade: {driver.speed} km/h, Bateria:{" "}
+              {driver.battery}%, Energia: {driver.energy} kWh
             </p>
           </div>
         ))}
@@ -632,7 +656,7 @@ export default function LivePage() {
   return (
     <div className="container mx-auto p-4 space-y-4">
       <h1 className="text-3xl font-bold text-center mb-6">
-        Formula E: Monaco E-Prix
+        Fórmula E: Monaco E-Prix
       </h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
@@ -641,16 +665,16 @@ export default function LivePage() {
               <div className="aspect-video bg-gray-900 flex items-center justify-center text-white relative">
                 <Image
                   src="/placeholder.svg?height=720&width=1280"
-                  alt="Live Stream"
+                  alt="Transmissão ao Vivo"
                   width={1280}
                   height={720}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                   {isRaceFinished ? (
-                    <p className="text-2xl font-bold">Race Finished</p>
+                    <p className="text-2xl font-bold">Corrida Finalizada</p>
                   ) : (
-                    <p className="text-2xl font-bold">Live Stream</p>
+                    <p className="text-2xl font-bold">Transmissão ao Vivo</p>
                   )}
                 </div>
               </div>
@@ -660,27 +684,29 @@ export default function LivePage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between">
-                <span>Race Status</span>
+                <span>Status da Corrida</span>
                 <Flag className="w-5 h-5 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-muted-foreground">Laps</p>
+                  <p className="text-sm text-muted-foreground">Voltas</p>
                   <p className="text-2xl font-bold">
                     {raceStatus?.lapsCompleted ?? 0}/
                     {raceStatus?.totalLaps ?? 0}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Time Elapsed</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tempo Decorrido
+                  </p>
                   <p className="text-2xl font-bold">
                     {raceStatus?.timeElapsed ?? "00:00:00"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Leader</p>
+                  <p className="text-sm text-muted-foreground">Líder</p>
                   <p className="text-2xl font-bold">
                     {lapData.length > 0
                       ? lapData[lapData.length - 1].leader
@@ -697,7 +723,7 @@ export default function LivePage() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Gauge className="w-5 h-5" />
-                    Car Data: {selectedDriver.name}
+                    Dados do Carro: {selectedDriver.name}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -717,7 +743,7 @@ export default function LivePage() {
                       }
                     >
                       <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select a driver" />
+                        <SelectValue placeholder="Selecione um piloto" />
                       </SelectTrigger>
                       <SelectContent>
                         {drivers.map((driver) => (
@@ -746,7 +772,7 @@ export default function LivePage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <Battery className="w-4 h-4" />
-                        <span>Battery</span>
+                        <span>Bateria</span>
                       </div>
                       <span className="font-bold">
                         {selectedDriverData.battery}%
@@ -763,7 +789,7 @@ export default function LivePage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <Gauge className="w-4 h-4" />
-                        <span>Speed</span>
+                        <span>Velocidade</span>
                       </div>
                       <span className="font-bold">
                         {selectedDriverData.speed} km/h
@@ -782,7 +808,7 @@ export default function LivePage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <Zap className="w-4 h-4" />
-                        <span>Energy Used</span>
+                        <span>Energia Usada</span>
                       </div>
                       <span className="font-bold">
                         {selectedDriverData.energy} kWh
@@ -807,25 +833,25 @@ export default function LivePage() {
               onClick={() => setShowFinalDashboard(true)}
               className="w-full"
             >
-              View Race Dashboard
+              Ver Painel da Corrida
             </Button>
           ) : (
             <Button onClick={() => setShowRaceDetails(true)} className="w-full">
-              See More Race Details
+              Ver Mais Detalhes da Corrida
             </Button>
           )}
 
           <Dialog open={showRaceDetails} onOpenChange={setShowRaceDetails}>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>Race Details</DialogTitle>
+                <DialogTitle>Detalhes da Corrida</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <BarChart className="w-5 h-5" />
-                      Betting Trends
+                      Tendências de Apostas
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -845,7 +871,7 @@ export default function LivePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <LineChartIcon className="w-5 h-5" />
-                      Driver Performance
+                      Desempenho do Piloto
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -855,14 +881,14 @@ export default function LivePage() {
                         <PolarAngleAxis dataKey="name" />
                         <PolarRadiusAxis angle={30} domain={[0, 250]} />
                         <Radar
-                          name="Average Speed"
+                          name="Velocidade Média"
                           dataKey="averageSpeed"
                           stroke="#8884d8"
                           fill="#8884d8"
                           fillOpacity={0.6}
                         />
                         <Radar
-                          name="Consistency"
+                          name="Consistência"
                           dataKey="consistency"
                           stroke="#82ca9d"
                           fill="#82ca9d"
@@ -884,7 +910,7 @@ export default function LivePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Battery className="w-5 h-5" />
-                      Energy Management
+                      Gestão de Energia
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -901,12 +927,12 @@ export default function LivePage() {
                         <Bar
                           dataKey="energyUsed"
                           fill="#8884d8"
-                          name="Energy Used (kWh)"
+                          name="Energia Usada (kWh)"
                         />
                         <Bar
                           dataKey="regeneration"
                           fill="#82ca9d"
-                          name="Energy Regenerated (kWh)"
+                          name="Energia Regenerada (kWh)"
                         />
                       </RechartsBarChart>
                     </ResponsiveContainer>
@@ -916,7 +942,7 @@ export default function LivePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <MapPin className="w-5 h-5" />
-                      Overtaking Analysis
+                      Análise de Ultrapassagens
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -930,12 +956,12 @@ export default function LivePage() {
                         <Bar
                           dataKey="overtakes"
                           fill="#8884d8"
-                          name="Overtakes"
+                          name="Ultrapassagens"
                         />
                         <Bar
                           dataKey="defensiveActions"
                           fill="#82ca9d"
-                          name="Defensive Actions"
+                          name="Ações Defensivas"
                         />
                       </RechartsBarChart>
                     </ResponsiveContainer>
@@ -950,15 +976,15 @@ export default function LivePage() {
           <Tabs defaultValue="leaderboard" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-              <TabsTrigger value="chat">Live Chat</TabsTrigger>
-              <TabsTrigger value="bets">Your Bets</TabsTrigger>
+              <TabsTrigger value="chat">Chat da Corrida</TabsTrigger>
+              <TabsTrigger value="bets">Suas Apostas</TabsTrigger>
             </TabsList>
             <TabsContent value="leaderboard">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Flag className="w-5 h-5" />
-                    Live Leaderboard
+                    Leaderboard ao Vivo
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1006,7 +1032,7 @@ export default function LivePage() {
                                   {driver.lapTime}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  Last Lap
+                                  Última Volta
                                 </div>
                               </div>
                             </div>
@@ -1055,7 +1081,7 @@ export default function LivePage() {
             <TabsContent value="chat">
               <Card>
                 <CardHeader>
-                  <CardTitle>Race Chat</CardTitle>
+                  <CardTitle>Chat da Corrida</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
@@ -1086,7 +1112,7 @@ export default function LivePage() {
                       type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..."
+                      placeholder="Digite sua mensagem..."
                       className="flex-grow"
                     />
                     <Button type="submit" size="icon">
@@ -1101,7 +1127,7 @@ export default function LivePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5" />
-                    Your Bets
+                    Suas Apostas
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1118,7 +1144,7 @@ export default function LivePage() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">{bet.amount} points</p>
+                          <p className="font-semibold">{bet.amount} pontos</p>
                           <p
                             className={`text-sm ${
                               bet.status === "won"
@@ -1148,29 +1174,33 @@ export default function LivePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Place a Bet</span>
+                <span>Fazer uma Aposta</span>
                 <DollarSign className="w-5 h-5 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold mb-4">Your Points: {userPoints}</p>
+              <p className="text-2xl font-bold mb-4">
+                Seus Pontos: {userPoints}
+              </p>
               <Tabs defaultValue="regular" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="regular">Regular Bets</TabsTrigger>
-                  <TabsTrigger value="nextLap">Next Lap Bets</TabsTrigger>
+                  <TabsTrigger value="regular">Apostas Regulares</TabsTrigger>
+                  <TabsTrigger value="nextLap">
+                    Apostas na Próxima Volta
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="regular">
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betType" className="text-right">
-                        Bet Type
+                        Tipo de Aposta
                       </label>
-                      <Select 
-                        value={betType} 
+                      <Select
+                        value={betType}
                         onValueChange={(value) => setBetType(value)}
                       >
                         <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select bet type" />
+                          <SelectValue placeholder="Selecione o tipo de aposta" />
                         </SelectTrigger>
                         <SelectContent>
                           {betOptions.map((option) => (
@@ -1183,14 +1213,14 @@ export default function LivePage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betDriver" className="text-right">
-                        Driver
+                        Piloto
                       </label>
-                      <Select 
-                        value={betDriver} 
+                      <Select
+                        value={betDriver}
                         onValueChange={(value) => setBetDriver(value)}
                       >
                         <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select driver" />
+                          <SelectValue placeholder="Selecione o piloto" />
                         </SelectTrigger>
                         <SelectContent>
                           {drivers.map((driver) => (
@@ -1203,7 +1233,7 @@ export default function LivePage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betAmount" className="text-right">
-                        Amount
+                        Quantidade
                       </label>
                       <Input
                         id="betAmount"
@@ -1216,8 +1246,12 @@ export default function LivePage() {
                     </div>
                     {betType && betDriver && betAmount && (
                       <div className="text-right">
-                        <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
-                        <p>Multiplier: {betMultiplier.toFixed(2)}x</p>
+                        <p>
+                          Ganho Potencial:{" "}
+                          {(Number(betAmount) * betMultiplier || 0).toFixed(2)}{" "}
+                          pontos
+                        </p>
+                        <p>Multiplicador: {betMultiplier.toFixed(2)}x</p>
                       </div>
                     )}
                   </div>
@@ -1226,14 +1260,20 @@ export default function LivePage() {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betType" className="text-right">
-                        Bet Type
+                        Tipo de Aposta
                       </label>
-                      <Select 
-                        value={betType} 
-                        onValueChange={(value) => setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`)}
+                      <Select
+                        value={betType}
+                        onValueChange={(value) =>
+                          setBetType(
+                            `nextLap${
+                              value.charAt(0).toUpperCase() + value.slice(1)
+                            }`
+                          )
+                        }
                       >
                         <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select bet type" />
+                          <SelectValue placeholder="Selecione o tipo de aposta" />
                         </SelectTrigger>
                         <SelectContent>
                           {nextLapBetOptions.map((option) => (
@@ -1246,14 +1286,14 @@ export default function LivePage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betDriver" className="text-right">
-                        Driver
+                        Piloto
                       </label>
-                      <Select 
-                        value={betDriver} 
+                      <Select
+                        value={betDriver}
                         onValueChange={(value) => setBetDriver(value)}
                       >
                         <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select driver" />
+                          <SelectValue placeholder="Selecione o piloto" />
                         </SelectTrigger>
                         <SelectContent>
                           {drivers.map((driver) => (
@@ -1266,7 +1306,7 @@ export default function LivePage() {
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betAmount" className="text-right">
-                        Amount
+                        Quantidade
                       </label>
                       <Input
                         id="betAmount"
@@ -1279,8 +1319,12 @@ export default function LivePage() {
                     </div>
                     {betType && betDriver && betAmount && (
                       <div className="text-right">
-                        <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
-                        <p>Multiplier: {betMultiplier.toFixed(2)}x</p>
+                        <p>
+                          Ganho Potencial:{" "}
+                          {(Number(betAmount) * betMultiplier || 0).toFixed(2)}{" "}
+                          pontos
+                        </p>
+                        <p>Multiplicador: {betMultiplier.toFixed(2)}x</p>
                       </div>
                     )}
                   </div>
@@ -1298,7 +1342,7 @@ export default function LivePage() {
                 }
                 className="w-full mt-4"
               >
-                Place Bet
+                Fazer Aposta
               </Button>
             </CardContent>
           </Card>
@@ -1309,12 +1353,12 @@ export default function LivePage() {
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Login Required</DialogTitle>
+            <DialogTitle>Login Necessário</DialogTitle>
             <DialogDescription>
-              Please log in with your Google account to continue.
+              Por favor, faça login com sua conta do Google para continuar.
             </DialogDescription>
           </DialogHeader>
-          <Button onClick={handleLogin}>Log in with Google</Button>
+          <Button onClick={handleLogin}>Entrar com o Google</Button>
         </DialogContent>
       </Dialog>
     </div>
