@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const stats = [
   { number: "50.000+", label: "Usuários Ativos" },
-  { number: "R$5M+", label: "Pagos em Ganhos" },
+  { number: "5.000+", label: "Prêmios Ganhos" },
   { number: "99,9%", label: "Disponibilidade" },
 ];
 
