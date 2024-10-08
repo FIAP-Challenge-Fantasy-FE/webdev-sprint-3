@@ -62,7 +62,7 @@ export default function TechnologySection() {
             viewport={{ once: true }}
           >
             <Image
-              src="/images/connected-vehicle-technology.jpg"
+              src="/images/carromahindra.jpg"
               alt="Tecnologia de Veículos Conectados"
               layout="fill"
               objectFit="cover"

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const steps = [
   { title: "Cadastre-se", description: "Crie sua conta e deposite fundos com segurança." },
   { title: "Faça Suas Apostas", description: "Escolha entre várias opções de apostas durante a corrida." },
-  { title: "Ganhe & Receba", description: "Assista à corrida, ganhe grande e receba seus pagamentos instantaneamente!" },
+  { title: "Ganhe & Receba", description: "Assista à corrida, aposte e concorra a recompensas" },
 ];
 
 const fadeInUp = {

@@ -23,7 +23,7 @@ export default function CTASection() {
           className="text-xl mb-8 text-white dark:text-gray-800"
           {...fadeInUp}
         >
-          Cadastre-se agora e ganhe 100% de bônus no seu primeiro depósito até R$500!
+          Cadastre-se agora e ganhe 100% de bônus em sua primeira Aposta!
         </motion.p>
         <motion.div {...fadeInUp}>
           <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-gray-100 dark:bg-gray-900 dark:text-primary-light dark:hover:bg-gray-800">
