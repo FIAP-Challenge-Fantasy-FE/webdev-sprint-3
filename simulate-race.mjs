@@ -1,85 +1,137 @@
-import admin from 'firebase-admin'
+import admin from 'firebase-admin';
 import serviceAccount from './service-account.json' assert { type: 'json' };
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-})
+  credential: admin.credential.cert(serviceAccount),
+});
 
-const db = admin.firestore()
+const db = admin.firestore();
 
 async function startRaceSimulation() {
-  const driversSnapshot = await db.collection('drivers').get()
-  const drivers = driversSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  const driversSnapshot = await db.collection('drivers').get();
+  const drivers = driversSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-  const initialRaceStatusDoc = await db.collection('initialRaceStatus').doc('default').get()
-  const initialRaceStatus = initialRaceStatusDoc.exists ? initialRaceStatusDoc.data() : {
-    lapsCompleted: 0,
-    totalLaps: 45,
-    timeElapsed: '00:00:00',
-  }
+  const initialRaceStatusDoc = await db.collection('initialRaceStatus').doc('default').get();
+  const initialRaceStatus = initialRaceStatusDoc.exists
+    ? initialRaceStatusDoc.data()
+    : {
+        lapsCompleted: 0,
+        totalLaps: 45,
+        timeElapsed: '00:00:00',
+      };
 
-  const raceRef = await db.collection('races').add({
+  // Initialize race data in memory
+  const raceData = {
     startTime: admin.firestore.FieldValue.serverTimestamp(),
-    status: 'in_progress'
-  })
+    status: 'in_progress',
+    raceStatus: initialRaceStatus,
+    drivers: drivers.map((driver) => ({
+      name: driver.name,
+      position: null,
+      lapTime: null,
+      speed: null,
+      battery: null,
+      energy: null,
+      performance: {
+        averageSpeed: 200,
+        consistency: 80,
+        racecraft: 80,
+      },
+      energyManagement: {
+        energyUsed: 20,
+        regeneration: 5,
+        efficiency: 80,
+      },
+      overtakingData: {
+        overtakes: 0,
+        defensiveActions: 0,
+      },
+      bettingTrends: {
+        bets: 0,
+      },
+      betMultipliers: {
+        winner: null,
+        fastestLap: null,
+        podiumFinish: null,
+        topFive: null,
+        nextLapFastestLap: null,
+        nextLapOvertakes: null,
+        nextLapEnergyEfficiency: null,
+      },
+    })),
+  };
 
-  // Add initial chat messages to the race
-  const initialChatMessagesSnapshot = await db.collection('initialChatMessages').get()
-  const initialChatMessages = initialChatMessagesSnapshot.docs.map(doc => doc.data())
-  
-  for (const message of initialChatMessages) {
-    await raceRef.collection('chatMessages').add({
-      ...message,
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
-    })
-  }
-
-  let raceStatus = { ...initialRaceStatus }
-  let lapData = []
-  let carData = []
-  let bettingTrends = drivers.map((driver) => ({ name: driver.name, bets: 0 }))
-  let driverPerformance = drivers.map((driver) => ({
-    name: driver.name,
-    averageSpeed: 200,
-    consistency: 80,
-    racecraft: 80,
-  }))
-  let energyManagement = drivers.map((driver) => ({
-    name: driver.name,
-    energyUsed: 20,
-    regeneration: 5,
-    efficiency: 80,
-  }))
-  let overtakingData = drivers.map((driver) => ({
-    name: driver.name,
-    overtakes: 0,
-    defensiveActions: 0,
-  }))
+  // Create a new race document with initial data
+  const raceRef = await db.collection('races').add(raceData);
 
   const interval = setInterval(async () => {
-    updateRaceData(drivers, raceStatus, lapData, driverPerformance, energyManagement, overtakingData)
-    await updateFirestore(raceRef, raceStatus, lapData, bettingTrends, driverPerformance, energyManagement, overtakingData)
+    updateRaceData(raceData);
+    await updateFirestore(raceRef, raceData);
 
-    if (raceStatus.lapsCompleted >= raceStatus.totalLaps) {
-      clearInterval(interval)
-      await completeRace(raceRef)
-      console.log('Race simulation completed')
+    // Validate nextLap bets after each lap
+    await validateNextLapBets(raceRef, raceData);
+
+    if (raceData.raceStatus.lapsCompleted >= raceData.raceStatus.totalLaps) {
+      clearInterval(interval);
+      await completeRace(raceRef, raceData);
+      console.log('Race simulation completed');
     }
-  }, 5000)
+  }, 5000);
 }
 
-function updateRaceData(drivers, raceStatus, lapData, driverPerformance, energyManagement, overtakingData) {
-  raceStatus.lapsCompleted = Math.min(raceStatus.lapsCompleted + 1, raceStatus.totalLaps)
-  raceStatus.timeElapsed = incrementTime(raceStatus.timeElapsed)
+function updateRaceData(raceData) {
+  const { raceStatus, drivers } = raceData;
 
-  const updatedDrivers = [...drivers].sort(() => Math.random() - 0.5)
+  raceStatus.lapsCompleted = Math.min(raceStatus.lapsCompleted + 1, raceStatus.totalLaps);
+  raceStatus.timeElapsed = incrementTime(raceStatus.timeElapsed);
+
+  // Update driver positions and stats
+  const updatedDrivers = [...drivers].sort(() => Math.random() - 0.5);
   updatedDrivers.forEach((driver, index) => {
-    driver.position = index + 1
+    driver.position = index + 1;
     driver.lapTime = `1:${31 + Math.floor(Math.random() * 3)}.${Math.floor(Math.random() * 1000)
       .toString()
-      .padStart(3, '0')}`
-  })
+      .padStart(3, '0')}`;
+    driver.speed = Math.floor(Math.random() * 50) + 200;
+    driver.battery = Math.floor(Math.random() * 20) + 80;
+    driver.energy = +(Math.random() * 10 + 20).toFixed(2);
 
+    // Update performance stats
+    driver.performance.averageSpeed = Math.max(
+      180,
+      Math.min(220, driver.performance.averageSpeed + (Math.random() - 0.5) * 2)
+    );
+    driver.performance.consistency = Math.max(
+      70,
+      Math.min(100, driver.performance.consistency + (Math.random() - 0.5))
+    );
+    driver.performance.racecraft = Math.max(
+      70,
+      Math.min(100, driver.performance.racecraft + (Math.random() - 0.5))
+    );
+
+    // Update energy management stats
+    driver.energyManagement.energyUsed = Math.min(
+      30,
+      driver.energyManagement.energyUsed + Math.random() * 0.5
+    );
+    driver.energyManagement.regeneration = Math.min(
+      10,
+      driver.energyManagement.regeneration + Math.random() * 0.2
+    );
+    driver.energyManagement.efficiency = Math.max(
+      70,
+      Math.min(100, driver.energyManagement.efficiency + (Math.random() - 0.5))
+    );
+
+    // Update overtaking data
+    driver.overtakingData.overtakes += Math.random() < 0.2 ? 1 : 0;
+    driver.overtakingData.defensiveActions += Math.random() < 0.1 ? 1 : 0;
+  });
+
+  raceData.drivers = updatedDrivers;
+
+  // Update lap data
   const newLapData = {
     lap: raceStatus.lapsCompleted,
     leader: updatedDrivers[0].name,
@@ -88,96 +140,59 @@ function updateRaceData(drivers, raceStatus, lapData, driverPerformance, energyM
       name: driver.name,
       position: driver.position,
       lapTime: driver.lapTime,
-      speed: Math.floor(Math.random() * 50) + 200,
-      battery: Math.floor(Math.random() * 20) + 80,
-      energy: +(Math.random() * 10 + 20).toFixed(2),
+      speed: driver.speed,
+      battery: driver.battery,
+      energy: driver.energy,
     })),
-  }
-  lapData.push(newLapData)
+  };
+  raceData.latestLapData = newLapData;
 
-  driverPerformance = driverPerformance.map((perf) => ({
-    ...perf,
-    averageSpeed: Math.max(180, Math.min(220, perf.averageSpeed + (Math.random() - 0.5) * 2)),
-    consistency: Math.max(70, Math.min(100, perf.consistency + (Math.random() - 0.5))),
-    racecraft: Math.max(70, Math.min(100, perf.racecraft + (Math.random() - 0.5))),
-  }))
-
-  energyManagement = energyManagement.map((energy) => ({
-    ...energy,
-    energyUsed: Math.min(30, energy.energyUsed + Math.random() * 0.5),
-    regeneration: Math.min(10, energy.regeneration + Math.random() * 0.2),
-    efficiency: Math.max(70, Math.min(100, energy.efficiency + (Math.random() - 0.5))),
-  }))
-
-  overtakingData = overtakingData.map((data) => ({
-    ...data,
-    overtakes: data.overtakes + (Math.random() < 0.2 ? 1 : 0),
-    defensiveActions: data.defensiveActions + (Math.random() < 0.1 ? 1 : 0),
-  }))
+  // Calculate and update bet multipliers
+  const multipliers = calculateBetMultipliers(updatedDrivers);
+  updatedDrivers.forEach((driver) => {
+    driver.betMultipliers = multipliers[driver.name];
+  });
 }
 
 function incrementTime(timeString) {
-  const [hours, minutes, seconds] = timeString.split(':').map(Number)
-  let newSeconds = seconds + 5
-  let newMinutes = minutes
-  let newHours = hours
+  const [hours, minutes, seconds] = timeString.split(':').map(Number);
+  let newSeconds = seconds + 5;
+  let newMinutes = minutes;
+  let newHours = hours;
   if (newSeconds >= 60) {
-    newSeconds -= 60
-    newMinutes += 1
+    newSeconds -= 60;
+    newMinutes += 1;
   }
   if (newMinutes >= 60) {
-    newMinutes -= 60
-    newHours += 1
+    newMinutes -= 60;
+    newHours += 1;
   }
   return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds
     .toString()
-    .padStart(2, '0')}`
+    .padStart(2, '0')}`;
 }
 
-async function updateFirestore(raceRef, raceStatus, lapData, bettingTrends, driverPerformance, energyManagement, overtakingData) {
+async function updateFirestore(raceRef, raceData) {
   try {
-    const batch = db.batch()
-
-    batch.update(raceRef, { status: raceStatus })
-
-    const latestLapData = lapData[lapData.length - 1]
-    batch.set(raceRef.collection('lapData').doc(`lap_${latestLapData.lap}`), latestLapData)
-
-    // Calculate and update bet multipliers
-    const multipliers = calculateBetMultipliers(latestLapData.drivers)
-    Object.entries(multipliers).forEach(([driverName, driverMultipliers]) => {
-      batch.set(raceRef.collection('betMultipliers').doc(driverName), driverMultipliers)
-    })
-
-    bettingTrends.forEach((trend) => {
-      batch.set(raceRef.collection('bettingTrends').doc(trend.name), trend)
-    })
-
-    driverPerformance.forEach((perf) => {
-      batch.set(raceRef.collection('driverPerformance').doc(perf.name), perf)
-    })
-
-    energyManagement.forEach((energy) => {
-      batch.set(raceRef.collection('energyManagement').doc(energy.name), energy)
-    })
-
-    overtakingData.forEach((data) => {
-      batch.set(raceRef.collection('overtakingData').doc(data.name), data)
-    })
-
-    await batch.commit()
-
-    console.log(`Updated Firestore for lap ${raceStatus.lapsCompleted}`)
+    await raceRef.set(
+      {
+        raceStatus: raceData.raceStatus,
+        drivers: raceData.drivers,
+        latestLapData: raceData.latestLapData,
+      },
+      { merge: true }
+    );
+    console.log(`Updated Firestore for lap ${raceData.raceStatus.lapsCompleted}`);
   } catch (error) {
-    console.error('Error updating Firestore:', error)
+    console.error('Error updating Firestore:', error);
   }
 }
 
 function calculateBetMultipliers(drivers) {
-  const multipliers = {}
-  drivers.forEach(driver => {
-    const position = driver.position || 1
-    const totalDrivers = drivers.length || 1
+  const multipliers = {};
+  const totalDrivers = drivers.length || 1;
+  drivers.forEach((driver) => {
+    const position = driver.position || 1;
 
     multipliers[driver.name] = {
       winner: calculateMultiplier(10 - (position / totalDrivers) * 5),
@@ -187,50 +202,150 @@ function calculateBetMultipliers(drivers) {
       nextLapFastestLap: calculateMultiplier(5),
       nextLapOvertakes: calculateMultiplier(4),
       nextLapEnergyEfficiency: calculateMultiplier(3),
-    }
-  })
-  return multipliers
+    };
+  });
+  return multipliers;
 }
 
 function calculateMultiplier(baseDifficulty) {
-  return Math.max(1.1, Math.min(10, baseDifficulty))
+  return Math.max(1.1, Math.min(10, baseDifficulty));
 }
 
-async function completeRace(raceRef) {
-  const db = admin.firestore()
-  const betsSnapshot = await raceRef.collection('userBets').get()
-  const raceDoc = await raceRef.get()
-  const raceData = raceDoc.data()
-  
-  const batch = db.batch()
+// New function to validate nextLap bets at the end of each lap
+async function validateNextLapBets(raceRef, raceData) {
+  const lapNumber = raceData.raceStatus.lapsCompleted;
+  const nextLapBetsSnapshot = await raceRef.collection('nextLapBets').where('lap', '==', lapNumber).get();
 
-  betsSnapshot.docs.forEach(betDoc => {
-    const bet = betDoc.data()
-    let betResult = 'lost'
-    let pointsWon = 0
+  if (nextLapBetsSnapshot.empty) {
+    return; // No nextLap bets for this lap
+  }
 
-    // Determine if the bet was won
-    if (bet.type === 'winner' && bet.driver === raceData.winner) {
-      betResult = 'won'
-      pointsWon = Math.floor(bet.amount * bet.multiplier)
+  const batch = db.batch();
+  nextLapBetsSnapshot.docs.forEach((betDoc) => {
+    const bet = betDoc.data();
+    let betResult = 'lost';
+    let pointsWon = 0;
+
+    const driver = raceData.drivers.find((d) => d.name === bet.driver);
+
+    if (!driver) {
+      // Driver not found, bet is lost
+      betResult = 'lost';
+    } else {
+      // Validate the bet based on its type
+      switch (bet.type) {
+        case 'nextLapFastestLap':
+          const fastestLapDriver = raceData.latestLapData.drivers.reduce((prev, curr) =>
+            prev.lapTime < curr.lapTime ? prev : curr
+          );
+          if (fastestLapDriver.name === bet.driver) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        case 'nextLapOvertakes':
+          if (driver.overtakingData.overtakes > 0) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        case 'nextLapEnergyEfficiency':
+          if (driver.energyManagement.efficiency > 90) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        // Add more cases as needed
+        default:
+          betResult = 'lost';
+      }
     }
-    // Add more conditions for other bet types
 
     // Update the bet document
-    batch.update(betDoc.ref, { status: betResult, points: pointsWon })
+    batch.update(betDoc.ref, { status: betResult, points: pointsWon });
 
     // Update user points
-    const userRef = db.collection('users').doc(bet.userId)
-    batch.update(userRef, { 
-      points: admin.firestore.FieldValue.increment(pointsWon - bet.amount)
-    })
-  })
-
-  // Update race status to finished
-  batch.update(raceRef, { status: 'finished' })
+    const userRef = db.collection('users').doc(bet.userId);
+    batch.update(userRef, {
+      points: admin.firestore.FieldValue.increment(pointsWon),
+    });
+  });
 
   // Commit all updates
-  await batch.commit()
+  await batch.commit();
 }
 
-startRaceSimulation()
+// Updated completeRace function to validate race bets at the end of the race
+async function completeRace(raceRef, raceData) {
+  const betsSnapshot = await raceRef.collection('userBets').get();
+  const winner = raceData.drivers.find((driver) => driver.position === 1).name;
+
+  const batch = db.batch();
+
+  betsSnapshot.docs.forEach((betDoc) => {
+    const bet = betDoc.data();
+    let betResult = 'lost';
+    let pointsWon = 0;
+
+    const driver = raceData.drivers.find((d) => d.name === bet.driver);
+
+    if (!driver) {
+      // Driver not found, bet is lost
+      betResult = 'lost';
+    } else {
+      // Validate the bet based on its type
+      switch (bet.type) {
+        case 'winner':
+          if (driver.name === winner) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        case 'fastestLap':
+          const fastestLapDriver = raceData.drivers.reduce((prev, curr) =>
+            prev.lapTime < curr.lapTime ? prev : curr
+          );
+          if (driver.name === fastestLapDriver.name) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        case 'podiumFinish':
+          if (driver.position <= 3) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        case 'topFive':
+          if (driver.position <= 5) {
+            betResult = 'won';
+            pointsWon = Math.floor(bet.amount * bet.multiplier);
+          }
+          break;
+        // Add more cases as needed
+        default:
+          betResult = 'lost';
+      }
+    }
+
+    // Update the bet document
+    batch.update(betDoc.ref, { status: betResult, points: pointsWon });
+
+    // Update user points
+    const userRef = db.collection('users').doc(bet.userId);
+    batch.update(userRef, {
+      points: admin.firestore.FieldValue.increment(pointsWon),
+    });
+  });
+
+  // Update race status to finished and store the winner
+  batch.update(raceRef, {
+    status: 'finished',
+    winner: winner,
+  });
+
+  // Commit all updates
+  await batch.commit();
+}
+
+startRaceSimulation();
