@@ -78,21 +78,18 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import YouTube from "react-youtube";
 
 export default function LivePage() {
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
-  const [initialRaceStatus, setInitialRaceStatus] = useState(null);
-  const [raceStatus, setRaceStatus] = useState(null);
-  const [initialChatMessages, setInitialChatMessages] = useState([]);
-  const [chatMessages, setChatMessages] = useState([]);
+  const [raceData, setRaceData] = useState(null);
+  const [latestLapData, setLatestLapData] = useState(null);
   const [betOptions, setBetOptions] = useState([]);
   const [nextLapBetOptions, setNextLapBetOptions] = useState([]);
-  const [lapData, setLapData] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
   const [bettingTrends, setBettingTrends] = useState([]);
-  const [driverPerformance, setDriverPerformance] = useState([]);
-  const [energyManagement, setEnergyManagement] = useState([]);
-  const [overtakingData, setOvertakingData] = useState([]);
+  const [userBets, setUserBets] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [betType, setBetType] = useState("");
   const [betDriver, setBetDriver] = useState("");
@@ -102,45 +99,50 @@ export default function LivePage() {
   const [showRaceDetails, setShowRaceDetails] = useState(false);
   const [isRaceFinished, setIsRaceFinished] = useState(false);
   const [showFinalDashboard, setShowFinalDashboard] = useState(false);
-  const [userBets, setUserBets] = useState([]);
   const [currentRaceId, setCurrentRaceId] = useState(null);
   const [user, setUser] = useState(null);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [loginAction, setLoginAction] = useState(null);
 
+  // Authentication State
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
+      if (user) {
+        createOrUpdateUserProfile(user);
+      }
     });
     return () => unsubscribe();
   }, []);
 
+  // User Profile Management
   const createOrUpdateUserProfile = async (user) => {
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      // Cria novo perfil de usuário
+      // Create new user profile
       await setDoc(userRef, {
         displayName: user.displayName,
         email: user.email,
         photoURL: user.photoURL,
-        points: 1000, // Pontos iniciais para novos usuários
+        points: 1000, // Initial points for new users
         createdAt: serverTimestamp(),
       });
     } else {
-      // Perfil de usuário existe, atualiza último login
+      // Update last login
       await updateDoc(userRef, {
         lastLogin: serverTimestamp(),
       });
     }
 
-    // Busca e define os pontos do usuário
+    // Fetch and set user points
     const updatedUserSnap = await getDoc(userRef);
     const userData = updatedUserSnap.data();
     setUserPoints(userData.points);
   };
 
+  // Handle Google Login
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -158,36 +160,14 @@ export default function LivePage() {
     }
   };
 
+  // Fetch Initial Data
   const fetchInitialData = useCallback(async () => {
     try {
-      const [
-        driversSnapshot,
-        raceStatusDoc,
-        chatMessagesSnapshot,
-        betOptionsSnapshot,
-        nextLapBetOptionsSnapshot,
-      ] = await Promise.all([
-        getDocs(collection(db, "drivers")),
-        getDoc(doc(db, "initialRaceStatus", "default")),
-        getDocs(collection(db, "initialChatMessages")),
+      const [betOptionsSnapshot, nextLapBetOptionsSnapshot] = await Promise.all([
         getDocs(collection(db, "betOptions")),
         getDocs(collection(db, "nextLapBetOptions")),
       ]);
 
-      const driversData = driversSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setDrivers(driversData);
-      if (driversData.length > 0) {
-        setSelectedDriver(driversData[0]);
-      }
-      setInitialRaceStatus(
-        raceStatusDoc.exists() ? raceStatusDoc.data() : null
-      );
-      setInitialChatMessages(
-        chatMessagesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
       setBetOptions(betOptionsSnapshot.docs.map((doc) => doc.data()));
       setNextLapBetOptions(
         nextLapBetOptionsSnapshot.docs.map((doc) => doc.data())
@@ -201,15 +181,7 @@ export default function LivePage() {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  useEffect(() => {
-    if (initialRaceStatus && !raceStatus) {
-      setRaceStatus(initialRaceStatus);
-    }
-    if (initialChatMessages.length > 0 && chatMessages.length === 0) {
-      setChatMessages(initialChatMessages);
-    }
-  }, [initialRaceStatus, raceStatus, initialChatMessages, chatMessages]);
-
+  // Listen to the Latest Race
   useEffect(() => {
     const racesQuery = query(
       collection(db, "races"),
@@ -220,60 +192,32 @@ export default function LivePage() {
       if (!snapshot.empty) {
         const raceDoc = snapshot.docs[0];
         setCurrentRaceId(raceDoc.id);
-        setRaceStatus(raceDoc.data().status);
+        setRaceData(raceDoc.data());
+        setIsRaceFinished(raceDoc.data().status === "finished");
       }
     });
 
     return () => unsubRaces();
   }, []);
 
+  // Listen to Race Data Updates
   useEffect(() => {
     if (!currentRaceId) return;
 
-    const unsubscribers = [
-      onSnapshot(doc(db, "races", currentRaceId), (doc) => {
-        if (doc.exists()) {
-          setRaceStatus(doc.data().status);
-        }
-      }),
-      onSnapshot(
-        query(
-          collection(db, "races", currentRaceId, "lapData"),
-          orderBy("lap", "asc")
-        ),
-        (snapshot) => {
-          setLapData(snapshot.docs.map((doc) => doc.data()));
-        }
-      ),
-      onSnapshot(
-        collection(db, "races", currentRaceId, "bettingTrends"),
-        (snapshot) => {
-          setBettingTrends(snapshot.docs.map((doc) => doc.data()));
-        }
-      ),
-      onSnapshot(
-        collection(db, "races", currentRaceId, "driverPerformance"),
-        (snapshot) => {
-          setDriverPerformance(snapshot.docs.map((doc) => doc.data()));
-        }
-      ),
-      onSnapshot(
-        collection(db, "races", currentRaceId, "energyManagement"),
-        (snapshot) => {
-          setEnergyManagement(snapshot.docs.map((doc) => doc.data()));
-        }
-      ),
-      onSnapshot(
-        collection(db, "races", currentRaceId, "overtakingData"),
-        (snapshot) => {
-          setOvertakingData(snapshot.docs.map((doc) => doc.data()));
-        }
-      ),
-    ];
+    const raceDocRef = doc(db, "races", currentRaceId);
+    const unsubRace = onSnapshot(raceDocRef, (doc) => {
+      if (doc.exists()) {
+        setRaceData(doc.data());
+        setIsRaceFinished(doc.data().status === "finished");
+        setDrivers(doc.data().drivers);
+        setLatestLapData(doc.data().latestLapData);
+      }
+    });
 
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+    return () => unsubRace();
   }, [currentRaceId]);
 
+  // Listen to Chat Messages
   useEffect(() => {
     if (!currentRaceId) return;
 
@@ -290,6 +234,7 @@ export default function LivePage() {
     return () => unsubChat();
   }, [currentRaceId]);
 
+  // Listen to User Bets
   useEffect(() => {
     if (!currentRaceId || !user) return;
 
@@ -333,6 +278,7 @@ export default function LivePage() {
     };
   }, [currentRaceId, user]);
 
+  // Handle Sending Chat Messages
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!user) {
@@ -351,11 +297,12 @@ export default function LivePage() {
         setNewMessage("");
       } catch (error) {
         console.error("Erro ao enviar mensagem:", error);
-        // Você pode querer exibir uma mensagem de erro para o usuário aqui
+        // Optionally, display an error message to the user
       }
     }
   };
 
+  // Handle Placing Bets
   const handlePlaceBet = async () => {
     if (!user) {
       setShowLoginDialog(true);
@@ -376,7 +323,7 @@ export default function LivePage() {
       };
 
       try {
-        // Adiciona a nova aposta no Firestore
+        // Add the new bet to Firestore
         await addDoc(
           collection(
             db,
@@ -387,14 +334,14 @@ export default function LivePage() {
           newBet
         );
 
-        // Atualiza os pontos do usuário no Firestore e localmente
+        // Update the user's points in Firestore and locally
         const userRef = doc(db, "users", user.uid);
         await updateDoc(userRef, {
           points: increment(-Number(betAmount)),
         });
         setUserPoints((prevPoints) => prevPoints - Number(betAmount));
 
-        // Atualiza as tendências de apostas no Firestore
+        // Update the betting trends in Firestore
         const trendDocRef = doc(
           db,
           "races",
@@ -406,18 +353,19 @@ export default function LivePage() {
           bets: increment(Number(betAmount)),
         });
 
-        // Reseta os inputs da aposta
+        // Reset bet inputs
         setBetType("");
         setBetDriver("");
         setBetAmount("");
         setBetMultiplier(1);
       } catch (error) {
         console.error("Erro ao fazer a aposta:", error);
-        // Você pode querer exibir uma mensagem de erro para o usuário aqui
+        // Optionally, display an error message to the user
       }
     }
   };
 
+  // Calculate Bet Multiplier
   const calculateBetMultiplier = useCallback(
     (betType, driverName) => {
       const driver = drivers.find((d) => d.name === driverName);
@@ -453,15 +401,16 @@ export default function LivePage() {
       }
 
       if (isNextLapBet) {
-        baseDifficulty *= 1.5; // Aumenta a dificuldade para apostas na próxima volta
+        baseDifficulty *= 1.5; // Increase difficulty for next lap bets
       }
 
-      const randomFactor = 0.8 + Math.random() * 0.4; // Fator aleatório entre 0.8 e 1.2
+      const randomFactor = 0.8 + Math.random() * 0.4; // Random factor between 0.8 and 1.2
       return Math.max(1.1, +(baseDifficulty * randomFactor).toFixed(2));
     },
     [drivers]
   );
 
+  // Update Bet Multiplier when betType or betDriver changes
   useEffect(() => {
     if (betType && betDriver) {
       const newMultiplier = calculateBetMultiplier(betType, betDriver);
@@ -471,57 +420,50 @@ export default function LivePage() {
     }
   }, [betType, betDriver, calculateBetMultiplier]);
 
+  // Select Next Driver for Car Data Display
   const selectNextDriver = () => {
-    const currentIndex = drivers.findIndex((d) => d.id === selectedDriver.id);
+    if (!selectedDriver) return;
+    const currentIndex = drivers.findIndex((d) => d.name === selectedDriver.name);
     const nextIndex = (currentIndex + 1) % drivers.length;
     setSelectedDriver(drivers[nextIndex]);
   };
 
+  // Select Previous Driver for Car Data Display
   const selectPreviousDriver = () => {
-    const currentIndex = drivers.findIndex((d) => d.id === selectedDriver.id);
+    if (!selectedDriver) return;
+    const currentIndex = drivers.findIndex((d) => d.name === selectedDriver.name);
     const previousIndex = (currentIndex - 1 + drivers.length) % drivers.length;
     setSelectedDriver(drivers[previousIndex]);
   };
 
+  // Get Selected Driver's Latest Car Data
   const getDriverData = useCallback(
     (driverName) => {
-      const driverCarData = lapData.flatMap((lap) =>
-        lap.drivers.filter((d) => d.name === driverName)
-      );
-      return (
-        driverCarData[driverCarData.length - 1] || {
-          battery: 0,
-          speed: 0,
-          energy: 0,
-        }
-      );
+      if (!raceData || !raceData.drivers) return { battery: 0, speed: 0, energy: 0 };
+      const driver = raceData.drivers.find((d) => d.name === driverName);
+      return driver || { battery: 0, speed: 0, energy: 0 };
     },
-    [lapData]
+    [raceData]
   );
 
   const selectedDriverData = selectedDriver
     ? getDriverData(selectedDriver.name)
     : { battery: 0, speed: 0, energy: 0 };
 
+  // Get Selected Driver's Stats
   const getDriverStats = useCallback(
     (driverName) => {
-      const performance = driverPerformance.find(
-        (d) => d.name === driverName
-      ) || { averageSpeed: 0, consistency: 0, racecraft: 0 };
-      const energy = energyManagement.find((d) => d.name === driverName) || {
-        energyUsed: 0,
-        regeneration: 0,
-        efficiency: 0,
-      };
-      const overtaking = overtakingData.find((d) => d.name === driverName) || {
-        overtakes: 0,
-        defensiveActions: 0,
-      };
-      return { ...performance, ...energy, ...overtaking };
+      if (!raceData || !raceData.drivers) return {};
+      const driver = raceData.drivers.find((d) => d.name === driverName);
+      if (!driver) return {};
+
+      const { performance, energyManagement, overtakingData } = driver;
+      return { ...performance, ...energyManagement, ...overtakingData };
     },
-    [driverPerformance, energyManagement, overtakingData]
+    [raceData]
   );
 
+  // Race Dashboard Component
   const RaceDashboard = () => (
     <Dialog open={showFinalDashboard} onOpenChange={setShowFinalDashboard}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -535,18 +477,17 @@ export default function LivePage() {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[300px]">
-                {lapData.length > 0 &&
-                  lapData[lapData.length - 1].drivers.map((driver, index) => (
-                    <div
-                      key={driver.name}
-                      className="flex items-center justify-between py-2 border-b last:border-b-0"
-                    >
-                      <span>
-                        {index + 1}. {driver.name}
-                      </span>
-                      <span>{driver.lapTime}</span>
-                    </div>
-                  ))}
+                {raceData?.drivers.map((driver, index) => (
+                  <div
+                    key={driver.name}
+                    className="flex items-center justify-between py-2 border-b last:border-b-0"
+                  >
+                    <span>
+                      {index + 1}. {driver.name}
+                    </span>
+                    <span>{driver.lapTime}</span>
+                  </div>
+                ))}
               </ScrollArea>
             </CardContent>
           </Card>
@@ -556,21 +497,19 @@ export default function LivePage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={lapData}>
+                <LineChart data={raceData?.lapData || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="lap" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  {drivers.map((driver, index) => (
+                  {raceData?.drivers.map((driver, index) => (
                     <Line
                       key={driver.name}
                       type="monotone"
-                      dataKey={`drivers[${index}].lapTime`}
+                      dataKey={`drivers.${index}.lapTime`}
                       name={driver.name}
-                      stroke={`hsl(${
-                        (index * 360) / drivers.length
-                      }, 70%, 50%)`}
+                      stroke={`hsl(${(index * 360) / raceData.drivers.length}, 70%, 50%)`}
                     />
                   ))}
                 </LineChart>
@@ -583,22 +522,14 @@ export default function LivePage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <RechartsBarChart data={energyManagement}>
+                <RechartsBarChart data={raceData?.drivers || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar
-                    dataKey="energyUsed"
-                    fill="#8884d8"
-                    name="Energia Usada"
-                  />
-                  <Bar
-                    dataKey="regeneration"
-                    fill="#82ca9d"
-                    name="Energia Regenerada"
-                  />
+                  <Bar dataKey="energyManagement.energyUsed" fill="#8884d8" name="Energia Usada" />
+                  <Bar dataKey="energyManagement.regeneration" fill="#82ca9d" name="Energia Regenerada" />
                 </RechartsBarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -609,22 +540,14 @@ export default function LivePage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <RechartsBarChart data={overtakingData}>
+                <RechartsBarChart data={raceData?.drivers || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar
-                    dataKey="overtakes"
-                    fill="#8884d8"
-                    name="Ultrapassagens"
-                  />
-                  <Bar
-                    dataKey="defensiveActions"
-                    fill="#82ca9d"
-                    name="Ações Defensivas"
-                  />
+                  <Bar dataKey="overtakingData.overtakes" fill="#8884d8" name="Ultrapassagens" />
+                  <Bar dataKey="overtakingData.defensiveActions" fill="#82ca9d" name="Ações Defensivas" />
                 </RechartsBarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -634,14 +557,14 @@ export default function LivePage() {
     </Dialog>
   );
 
+  // Render Car Data Component
   const renderCarData = () => {
-    if (lapData.length === 0) return null;
+    if (!latestLapData) return null;
 
-    const latestLap = lapData[lapData.length - 1];
     return (
       <div>
-        <h3>Dados do Carro (Volta {latestLap.lap})</h3>
-        {latestLap.drivers.map((driver) => (
+        <h3>Dados do Carro (Volta {latestLapData.lap})</h3>
+        {latestLapData.drivers.map((driver) => (
           <div key={driver.name}>
             <p>
               {driver.name}: Velocidade: {driver.speed} km/h, Bateria:{" "}
@@ -660,27 +583,29 @@ export default function LivePage() {
       </h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
+          {/* Live Transmission Card */}
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <div className="aspect-video bg-gray-900 flex items-center justify-center text-white relative">
-                <Image
-                  src="/placeholder.svg?height=720&width=1280"
-                  alt="Transmissão ao Vivo"
-                  width={1280}
-                  height={720}
+                <YouTube
+                  videoId="efq9LKuelIo"
                   className="w-full h-full object-cover"
+                  opts={{
+                    width: "100%",
+                    height: "100%",
+                    playerVars: {
+                      autoplay: 1,
+                      controls: 0,
+                      loop: 1,
+                      mute: 1,
+                    }
+                  }}
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  {isRaceFinished ? (
-                    <p className="text-2xl font-bold">Corrida Finalizada</p>
-                  ) : (
-                    <p className="text-2xl font-bold">Transmissão ao Vivo</p>
-                  )}
-                </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Race Status Card */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between">
@@ -693,8 +618,8 @@ export default function LivePage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Voltas</p>
                   <p className="text-2xl font-bold">
-                    {raceStatus?.lapsCompleted ?? 0}/
-                    {raceStatus?.totalLaps ?? 0}
+                    {raceData?.raceStatus.lapsCompleted ?? 0}/
+                    {raceData?.raceStatus.totalLaps ?? 0}
                   </p>
                 </div>
                 <div>
@@ -702,21 +627,20 @@ export default function LivePage() {
                     Tempo Decorrido
                   </p>
                   <p className="text-2xl font-bold">
-                    {raceStatus?.timeElapsed ?? "00:00:00"}
+                    {raceData?.raceStatus.timeElapsed ?? "00:00:00"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Líder</p>
                   <p className="text-2xl font-bold">
-                    {lapData.length > 0
-                      ? lapData[lapData.length - 1].leader
-                      : "N/A"}
+                    {raceData?.latestLapData?.leader ?? "N/A"}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Selected Driver Car Data Card */}
           {selectedDriver && (
             <Card>
               <CardHeader>
@@ -734,11 +658,10 @@ export default function LivePage() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <Select
-                      value={selectedDriver.id.toString()}
+                      value={selectedDriver.name}
                       onValueChange={(value) =>
                         setSelectedDriver(
-                          drivers.find((d) => d.id === parseInt(value)) ||
-                            drivers[0]
+                          drivers.find((d) => d.name === value) || drivers[0]
                         )
                       }
                     >
@@ -748,8 +671,8 @@ export default function LivePage() {
                       <SelectContent>
                         {drivers.map((driver) => (
                           <SelectItem
-                            key={driver.id}
-                            value={driver.id.toString()}
+                            key={driver.name}
+                            value={driver.name}
                           >
                             {driver.name}
                           </SelectItem>
@@ -768,6 +691,7 @@ export default function LivePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {/* Bateria */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
@@ -785,6 +709,7 @@ export default function LivePage() {
                       ></div>
                     </div>
                   </div>
+                  {/* Velocidade */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
@@ -804,6 +729,7 @@ export default function LivePage() {
                       ></div>
                     </div>
                   </div>
+                  {/* Energia Usada */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
@@ -828,6 +754,7 @@ export default function LivePage() {
             </Card>
           )}
 
+          {/* Race Details and Final Dashboard Buttons */}
           {isRaceFinished ? (
             <Button
               onClick={() => setShowFinalDashboard(true)}
@@ -841,12 +768,14 @@ export default function LivePage() {
             </Button>
           )}
 
+          {/* Race Details Dialog */}
           <Dialog open={showRaceDetails} onOpenChange={setShowRaceDetails}>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
                 <DialogTitle>Detalhes da Corrida</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Tendências de Apostas */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -856,7 +785,7 @@ export default function LivePage() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <RechartsBarChart data={bettingTrends}>
+                      <RechartsBarChart data={raceData?.bettingTrends || []}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
@@ -867,6 +796,8 @@ export default function LivePage() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+
+                {/* Desempenho do Piloto */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -876,27 +807,27 @@ export default function LivePage() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart data={driverPerformance}>
+                      <RadarChart data={raceData?.drivers || []}>
                         <PolarGrid />
                         <PolarAngleAxis dataKey="name" />
                         <PolarRadiusAxis angle={30} domain={[0, 250]} />
                         <Radar
                           name="Velocidade Média"
-                          dataKey="averageSpeed"
+                          dataKey="performance.averageSpeed"
                           stroke="#8884d8"
                           fill="#8884d8"
                           fillOpacity={0.6}
                         />
                         <Radar
                           name="Consistência"
-                          dataKey="consistency"
+                          dataKey="performance.consistency"
                           stroke="#82ca9d"
                           fill="#82ca9d"
                           fillOpacity={0.6}
                         />
                         <Radar
                           name="Racecraft"
-                          dataKey="racecraft"
+                          dataKey="performance.racecraft"
                           stroke="#ffc658"
                           fill="#ffc658"
                           fillOpacity={0.6}
@@ -906,6 +837,8 @@ export default function LivePage() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+
+                {/* Gestão de Energia */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -916,7 +849,7 @@ export default function LivePage() {
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                       <RechartsBarChart
-                        data={energyManagement}
+                        data={raceData?.drivers || []}
                         layout="vertical"
                       >
                         <CartesianGrid strokeDasharray="3 3" />
@@ -925,12 +858,12 @@ export default function LivePage() {
                         <Tooltip />
                         <Legend />
                         <Bar
-                          dataKey="energyUsed"
+                          dataKey="energyManagement.energyUsed"
                           fill="#8884d8"
                           name="Energia Usada (kWh)"
                         />
                         <Bar
-                          dataKey="regeneration"
+                          dataKey="energyManagement.regeneration"
                           fill="#82ca9d"
                           name="Energia Regenerada (kWh)"
                         />
@@ -938,6 +871,8 @@ export default function LivePage() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+
+                {/* Análise de Ultrapassagens */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -947,19 +882,19 @@ export default function LivePage() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <RechartsBarChart data={overtakingData}>
+                      <RechartsBarChart data={raceData?.drivers || []}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
                         <Legend />
                         <Bar
-                          dataKey="overtakes"
+                          dataKey="overtakingData.overtakes"
                           fill="#8884d8"
                           name="Ultrapassagens"
                         />
                         <Bar
-                          dataKey="defensiveActions"
+                          dataKey="overtakingData.defensiveActions"
                           fill="#82ca9d"
                           name="Ações Defensivas"
                         />
@@ -972,6 +907,7 @@ export default function LivePage() {
           </Dialog>
         </div>
 
+        {/* Sidebar with Tabs */}
         <div className="space-y-4">
           <Tabs defaultValue="leaderboard" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -989,71 +925,58 @@ export default function LivePage() {
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
-                    {lapData.length > 0 &&
-                      lapData[lapData.length - 1].drivers.map((driver) => (
-                        <Popover key={driver.name}>
-                          <PopoverTrigger asChild>
-                            <div className="flex items-center justify-between py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50">
-                              <div className="flex items-center gap-3">
-                                <div className="font-bold text-lg w-8">
-                                  {driver.position}
-                                </div>
-                                <Avatar className="w-10 h-10">
-                                  <AvatarImage
-                                    src={
-                                      drivers.find(
-                                        (d) => d.name === driver.name
-                                      )?.avatar
-                                    }
-                                    alt={driver.name}
-                                  />
-                                  <AvatarFallback>
-                                    {driver.name
-                                      .split(" ")
-                                      .map((n) => n[0])
-                                      .join("")}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <div className="font-semibold">
-                                    {driver.name}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {
-                                      drivers.find(
-                                        (d) => d.name === driver.name
-                                      )?.team
-                                    }
-                                  </div>
-                                </div>
+                    {raceData?.drivers.map((driver) => (
+                      <Popover key={driver.name}>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center justify-between py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <div className="font-bold text-lg w-8">
+                                {driver.position}
                               </div>
-                              <div className="text-right">
+                              <Avatar className="w-10 h-10">
+                                <AvatarImage
+                                  src={driver.avatar}
+                                  alt={driver.name}
+                                />
+                                <AvatarFallback>
+                                  {driver.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
                                 <div className="font-semibold">
-                                  {driver.lapTime}
+                                  {driver.name}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  Última Volta
+                                  {driver.team}
                                 </div>
                               </div>
                             </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80">
-                            <div className="grid gap-4">
-                              <div className="space-y-2">
-                                <h4 className="font-medium leading-none">
-                                  {driver.name}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {
-                                    drivers.find((d) => d.name === driver.name)
-                                      ?.team
-                                  }
-                                </p>
+                            <div className="text-right">
+                              <div className="font-semibold">
+                                {driver.lapTime}
                               </div>
-                              <div className="grid gap-2">
-                                {Object.entries(
-                                  getDriverStats(driver.name)
-                                ).map(([key, value]) => (
+                              <div className="text-sm text-muted-foreground">
+                                Última Volta
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                          <div className="grid gap-4">
+                            <div className="space-y-2">
+                              <h4 className="font-medium leading-none">
+                                {driver.name}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {driver.team}
+                              </p>
+                            </div>
+                            <div className="grid gap-2">
+                              {Object.entries(getDriverStats(driver.name)).map(
+                                ([key, value]) => (
                                   <div
                                     key={key}
                                     className="grid grid-cols-2 items-center gap-4"
@@ -1068,12 +991,13 @@ export default function LivePage() {
                                         : value}
                                     </span>
                                   </div>
-                                ))}
-                              </div>
+                                )
+                              )}
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    ))}
                   </ScrollArea>
                 </CardContent>
               </Card>
@@ -1091,10 +1015,7 @@ export default function LivePage() {
                         className="flex items-start space-x-4 mb-4"
                       >
                         <Avatar>
-                          <AvatarImage
-                            src={message.avatar}
-                            alt={message.user}
-                          />
+                          <AvatarImage src={message.avatar} alt={message.user} />
                           <AvatarFallback>{message.user[0]}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -1171,6 +1092,7 @@ export default function LivePage() {
             </TabsContent>
           </Tabs>
 
+          {/* Betting Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1191,6 +1113,7 @@ export default function LivePage() {
                 </TabsList>
                 <TabsContent value="regular">
                   <div className="grid gap-4 py-4">
+                    {/* Tipo de Aposta */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betType" className="text-right">
                         Tipo de Aposta
@@ -1211,6 +1134,7 @@ export default function LivePage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Piloto */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betDriver" className="text-right">
                         Piloto
@@ -1224,13 +1148,14 @@ export default function LivePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {drivers.map((driver) => (
-                            <SelectItem key={driver.id} value={driver.name}>
+                            <SelectItem key={driver.name} value={driver.name}>
                               {driver.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Quantidade */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betAmount" className="text-right">
                         Quantidade
@@ -1244,6 +1169,7 @@ export default function LivePage() {
                         max={userPoints}
                       />
                     </div>
+                    {/* Multiplicador e Ganho Potencial */}
                     {betType && betDriver && betAmount && (
                       <div className="text-right">
                         <p>
@@ -1258,6 +1184,7 @@ export default function LivePage() {
                 </TabsContent>
                 <TabsContent value="nextLap">
                   <div className="grid gap-4 py-4">
+                    {/* Tipo de Aposta na Próxima Volta */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betType" className="text-right">
                         Tipo de Aposta
@@ -1265,11 +1192,7 @@ export default function LivePage() {
                       <Select
                         value={betType}
                         onValueChange={(value) =>
-                          setBetType(
-                            `nextLap${
-                              value.charAt(0).toUpperCase() + value.slice(1)
-                            }`
-                          )
+                          setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`)
                         }
                       >
                         <SelectTrigger className="col-span-3">
@@ -1284,6 +1207,7 @@ export default function LivePage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Piloto */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betDriver" className="text-right">
                         Piloto
@@ -1297,13 +1221,14 @@ export default function LivePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {drivers.map((driver) => (
-                            <SelectItem key={driver.id} value={driver.name}>
+                            <SelectItem key={driver.name} value={driver.name}>
                               {driver.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    {/* Quantidade */}
                     <div className="grid grid-cols-4 items-center gap-4">
                       <label htmlFor="betAmount" className="text-right">
                         Quantidade
@@ -1317,6 +1242,7 @@ export default function LivePage() {
                         max={userPoints}
                       />
                     </div>
+                    {/* Multiplicador e Ganho Potencial */}
                     {betType && betDriver && betAmount && (
                       <div className="text-right">
                         <p>
@@ -1347,9 +1273,15 @@ export default function LivePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Sidebar Components */}
+        {/* You can add more components here if needed */}
       </div>
+
+      {/* Race Dashboard Dialog */}
       <RaceDashboard />
 
+      {/* Login Dialog */}
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent>
           <DialogHeader>
