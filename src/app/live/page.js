@@ -971,7 +971,7 @@ export default function LivePage() {
 
           {/* Race Details Dialog */}
           <Dialog open={showRaceDetails} onOpenChange={setShowRaceDetails}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="sm:max-w-[90vw] max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Detalhes da Corrida</DialogTitle>
               </DialogHeader>
