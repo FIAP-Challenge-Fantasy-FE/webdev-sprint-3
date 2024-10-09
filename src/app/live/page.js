@@ -90,6 +90,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Toaster, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
 
 export default function LivePage() {
   const [drivers, setDrivers] = useState([]);
@@ -730,7 +731,14 @@ export default function LivePage() {
         </TabsList>
         <TabsContent value="regular">
           <div className="space-y-4">
-            <Select value={betType} onValueChange={(value) => setBetType(value)}>
+            <Select 
+              value={betType.startsWith('nextLap') ? '' : betType} 
+              onValueChange={(value) => {
+                setBetType(value);
+                setBetDriver('');
+                setBetAmount('');
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select bet type" />
               </SelectTrigger>
@@ -754,13 +762,15 @@ export default function LivePage() {
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              type="number"
-              value={betAmount}
-              onChange={(e) => setBetAmount(e.target.value)}
-              placeholder="Bet amount"
-              max={userPoints}
-            />
+            <div tabIndex={0}>
+              <Input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(e.target.value)}
+                placeholder="Bet amount"
+                max={userPoints}
+              />
+            </div>
             {betType && betDriver && betAmount && (
               <div className="text-sm text-muted-foreground">
                 <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
@@ -771,7 +781,14 @@ export default function LivePage() {
         </TabsContent>
         <TabsContent value="nextLap">
           <div className="space-y-4">
-            <Select value={betType} onValueChange={(value) => setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`)}>
+            <Select 
+              value={betType.startsWith('nextLap') ? betType.slice(7) : ''}
+              onValueChange={(value) => {
+                setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`);
+                setBetDriver('');
+                setBetAmount('');
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select bet type" />
               </SelectTrigger>
@@ -795,13 +812,15 @@ export default function LivePage() {
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              type="number"
-              value={betAmount}
-              onChange={(e) => setBetAmount(e.target.value)}
-              placeholder="Bet amount"
-              max={userPoints}
-            />
+            <div tabIndex={0}>
+              <Input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(e.target.value)}
+                placeholder="Bet amount"
+                max={userPoints}
+              />
+            </div>
             {betType && betDriver && betAmount && (
               <div className="text-sm text-muted-foreground">
                 <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
