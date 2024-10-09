@@ -30,17 +30,15 @@ async function startRaceSimulation() {
       position: null,
       lapTime: null,
       speed: null,
-      battery: null,
-      energy: null,
+      battery: 100, // Starting with 100% battery
+      energy: 52,   // Starting with 52 kWh typical for Formula E cars
       performance: {
         averageSpeed: 200,
         consistency: 80,
         racecraft: 80,
       },
       energyManagement: {
-        energyUsed: 20,
-        regeneration: 5,
-        efficiency: 80,
+        efficiency: 90 + Math.random() * 10, // Efficiency between 90% and 100%
       },
       overtakingData: {
         overtakes: 0,
@@ -83,93 +81,159 @@ function updateRaceData(raceData) {
   const { raceStatus, drivers } = raceData;
 
   raceStatus.lapsCompleted = Math.min(raceStatus.lapsCompleted + 1, raceStatus.totalLaps);
-  raceStatus.timeElapsed = incrementTime(raceStatus.timeElapsed);
 
-  // Update driver positions and stats
-  const updatedDrivers = [...drivers].sort(() => Math.random() - 0.5);
-  updatedDrivers.forEach((driver, index) => {
-    driver.position = index + 1;
-    driver.lapTime = `1:${31 + Math.floor(Math.random() * 3)}.${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, '0')}`;
-    driver.speed = Math.floor(Math.random() * 50) + 200;
-    driver.battery = Math.floor(Math.random() * 20) + 80;
-    driver.energy = +(Math.random() * 10 + 20).toFixed(2);
+  // Update driver stats based on performance
+  drivers.forEach((driver) => {
+    // Calculate lap time based on average speed and consistency
+    const baseLapTime = 90; // Base lap time in seconds
+    const lapSpeedFactor = (220 - driver.performance.averageSpeed) / 20;
+    const consistencyFactor = (100 - driver.performance.consistency) / 100;
+    const randomVariation = (Math.random() - 0.5) * 0.5; // Small random variation
+    const lapTimeSeconds =
+      baseLapTime + lapSpeedFactor * 2 + consistencyFactor * 2 + randomVariation;
 
-    // Update performance stats
+    driver.lapTime = secondsToLapTime(lapTimeSeconds);
+
+    // Update speed with a small variation
+    driver.speed =
+      driver.performance.averageSpeed + (Math.random() - 0.5) * 0.5;
+
+    // Calculate energy used per lap
+    const totalRaceTimeMinutes = 45; // Total race time in minutes
+    const totalRaceEnergy = 52;      // Total energy in kWh
+    const averageLapTimeMinutes = totalRaceTimeMinutes / raceStatus.totalLaps;
+
+    const baseEnergyUsagePerLap = totalRaceEnergy / raceStatus.totalLaps; // kWh per lap
+    const efficiencyFactor = (100 - driver.energyManagement.efficiency) / 100;
+    const speedFactor = (driver.speed - 180) / 40; // Adjusting for speed range
+
+    const energyUsedThisLap =
+      baseEnergyUsagePerLap * (1 + efficiencyFactor + speedFactor * 0.05);
+
+    const regenerationThisLap = baseEnergyUsagePerLap * 0.1; // Regenerate 10%
+
+    // Update battery and energy management
+    driver.energy = Math.max(
+      0,
+      driver.energy - energyUsedThisLap + regenerationThisLap
+    );
+
+    driver.battery = (driver.energy / totalRaceEnergy) * 100;
+
+    driver.battery = Math.min(driver.battery, 100);
+    driver.energy = Math.min(driver.energy, totalRaceEnergy);
+
+    // Update overtaking and defensive actions based on racecraft
+    driver.overtakingData.overtakes +=
+      Math.random() < driver.performance.racecraft / 200 ? 1 : 0;
+
+    // Ensure defensive actions do not decrease
+    const previousDefensiveActions = driver.overtakingData.defensiveActions;
+    const additionalDefensive =
+      Math.random() < driver.performance.racecraft / 200 ? 1 : 0;
+    driver.overtakingData.defensiveActions =
+      previousDefensiveActions + additionalDefensive;
+
+    // Update performance stats slightly
+    driver.performance.averageSpeed += (Math.random() - 0.5) * 0.2;
+    driver.performance.consistency += (Math.random() - 0.5) * 0.2;
+    driver.performance.racecraft += (Math.random() - 0.5) * 0.2;
+
+    // Clamp performance stats
     driver.performance.averageSpeed = Math.max(
       180,
-      Math.min(220, driver.performance.averageSpeed + (Math.random() - 0.5) * 2)
+      Math.min(220, driver.performance.averageSpeed)
     );
     driver.performance.consistency = Math.max(
       70,
-      Math.min(100, driver.performance.consistency + (Math.random() - 0.5))
+      Math.min(100, driver.performance.consistency)
     );
     driver.performance.racecraft = Math.max(
       70,
-      Math.min(100, driver.performance.racecraft + (Math.random() - 0.5))
+      Math.min(100, driver.performance.racecraft)
     );
-
-    // Update energy management stats
-    driver.energyManagement.energyUsed = Math.min(
-      30,
-      driver.energyManagement.energyUsed + Math.random() * 0.5
-    );
-    driver.energyManagement.regeneration = Math.min(
-      10,
-      driver.energyManagement.regeneration + Math.random() * 0.2
-    );
-    driver.energyManagement.efficiency = Math.max(
-      70,
-      Math.min(100, driver.energyManagement.efficiency + (Math.random() - 0.5))
-    );
-
-    // Update overtaking data
-    driver.overtakingData.overtakes += Math.random() < 0.2 ? 1 : 0;
-    driver.overtakingData.defensiveActions += Math.random() < 0.1 ? 1 : 0;
   });
 
-  raceData.drivers = updatedDrivers;
+  // Sort drivers based on lap times to determine positions
+  drivers.sort((a, b) => {
+    const aLapTime = lapTimeToSeconds(a.lapTime);
+    const bLapTime = lapTimeToSeconds(b.lapTime);
+    return aLapTime - bLapTime;
+  });
 
-  // Update lap data
-  const newLapData = {
+  // Update positions based on sorted lap times
+  drivers.forEach((driver, index) => {
+    driver.position = index + 1;
+  });
+
+  // Update latest lap data
+  raceData.latestLapData = {
     lap: raceStatus.lapsCompleted,
-    leader: updatedDrivers[0].name,
-    gap: Math.random() * 5,
-    drivers: updatedDrivers.map((driver) => ({
+    leader: drivers[0].name,
+    gap:
+      lapTimeDifference(
+        drivers[0].lapTime,
+        drivers[1]?.lapTime || drivers[0].lapTime
+      ) + 's',
+    drivers: drivers.map((driver) => ({
       name: driver.name,
       position: driver.position,
       lapTime: driver.lapTime,
-      speed: driver.speed,
-      battery: driver.battery,
-      energy: driver.energy,
+      speed: driver.speed.toFixed(2),
+      battery: driver.battery.toFixed(2),
+      energy: driver.energy.toFixed(2),
     })),
   };
-  raceData.latestLapData = newLapData;
+
+  // Update the total timeElapsed based on the leader's lap time
+  const leaderLapTimeSeconds = lapTimeToSeconds(drivers[0].lapTime);
+  const previousTimeElapsedSeconds = raceStatus.timeElapsed
+    ? timeStringToSeconds(raceStatus.timeElapsed)
+    : 0;
+  const newTimeElapsedSeconds = previousTimeElapsedSeconds + leaderLapTimeSeconds;
+  raceStatus.timeElapsed = secondsToTimeString(newTimeElapsedSeconds);
 
   // Calculate and update bet multipliers
-  const multipliers = calculateBetMultipliers(updatedDrivers);
-  updatedDrivers.forEach((driver) => {
+  const multipliers = calculateBetMultipliers(drivers);
+  drivers.forEach((driver) => {
     driver.betMultipliers = multipliers[driver.name];
   });
 }
 
-function incrementTime(timeString) {
+// Helper function to convert lap time string to seconds
+function lapTimeToSeconds(lapTime) {
+  const [minutes, seconds] = lapTime.split(':');
+  return parseInt(minutes) * 60 + parseFloat(seconds);
+}
+
+// Helper function to convert seconds to lap time string
+function secondsToLapTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = (totalSeconds % 60).toFixed(3).padStart(6, '0');
+  return `${minutes}:${seconds}`;
+}
+
+// Helper function to calculate time difference between two lap times
+function lapTimeDifference(lapTime1, lapTime2) {
+  const diff = Math.abs(lapTimeToSeconds(lapTime1) - lapTimeToSeconds(lapTime2));
+  return diff.toFixed(3);
+}
+
+// Helper function to convert time string to seconds
+function timeStringToSeconds(timeString) {
   const [hours, minutes, seconds] = timeString.split(':').map(Number);
-  let newSeconds = seconds + 5;
-  let newMinutes = minutes;
-  let newHours = hours;
-  if (newSeconds >= 60) {
-    newSeconds -= 60;
-    newMinutes += 1;
-  }
-  if (newMinutes >= 60) {
-    newMinutes -= 60;
-    newHours += 1;
-  }
-  return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+// Helper function to convert seconds to time string
+function secondsToTimeString(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  return `${hours.toString().padStart(2, '0')}:${minutes
     .toString()
-    .padStart(2, '0')}`;
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 async function updateFirestore(raceRef, raceData) {
