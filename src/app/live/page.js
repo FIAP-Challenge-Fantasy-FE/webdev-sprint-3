@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
   LineChart as LineChartIcon,
   MapPin,
   TrendingUp,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -79,6 +81,15 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import YouTube from "react-youtube";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 export default function LivePage() {
   const [drivers, setDrivers] = useState([]);
@@ -103,6 +114,8 @@ export default function LivePage() {
   const [user, setUser] = useState(null);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [loginAction, setLoginAction] = useState(null);
+  const [openBetting, setOpenBetting] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // Authentication State
   useEffect(() => {
@@ -209,7 +222,7 @@ export default function LivePage() {
       if (doc.exists()) {
         setRaceData(doc.data());
         setIsRaceFinished(doc.data().status === "finished");
-        setDrivers(doc.data().drivers);
+        setDrivers(doc.data().drivers); // Updating drivers state
         setLatestLapData(doc.data().latestLapData);
       }
     });
@@ -557,24 +570,184 @@ export default function LivePage() {
     </Dialog>
   );
 
-  // Render Car Data Component
+  // Update the renderCarData function
   const renderCarData = () => {
-    if (!latestLapData) return null;
+    if (!selectedDriver) return null;
 
     return (
-      <div>
-        <h3>Dados do Carro (Volta {latestLapData.lap})</h3>
-        {latestLapData.drivers.map((driver) => (
-          <div key={driver.name}>
-            <p>
-              {driver.name}: Velocidade: {driver.speed} km/h, Bateria:{" "}
-              {driver.battery}%, Energia: {driver.energy} kWh
-            </p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Dados do Carro: {selectedDriver.name}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Velocidade</p>
+              <p className="text-2xl font-bold">
+                {Number(selectedDriver.speed).toFixed(2)} km/h
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Bateria</p>
+              <p className="text-2xl font-bold">
+                {Number(selectedDriver.battery).toFixed(2)}%
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Energia Usada</p>
+              <p className="text-2xl font-bold">
+                {Number(selectedDriver.energy).toFixed(2)} kWh
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Última Volta</p>
+              <p className="text-2xl font-bold">{selectedDriver.lapTime}</p>
+            </div>
           </div>
-        ))}
-      </div>
+        </CardContent>
+      </Card>
     );
   };
+
+  useEffect(() => {
+    if (!selectedDriver && drivers.length > 0) {
+      const interval = setInterval(() => {
+        setSelectedDriver((prev) => {
+          const currentIndex = drivers.findIndex((d) => d.name === prev?.name);
+          const nextIndex = (currentIndex + 1) % drivers.length;
+          return drivers[nextIndex];
+        });
+      }, 5000); // Change driver every 5 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [drivers, selectedDriver]);
+
+  const BettingForm = () => (
+    <div className="space-y-4">
+      <Tabs defaultValue="regular" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="regular">Regular Bets</TabsTrigger>
+          <TabsTrigger value="nextLap">Next Lap Bets</TabsTrigger>
+        </TabsList>
+        <TabsContent value="regular">
+          <div className="space-y-4">
+            <Select value={betType} onValueChange={(value) => setBetType(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select bet type" />
+              </SelectTrigger>
+              <SelectContent>
+                {betOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={betDriver} onValueChange={(value) => setBetDriver(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select driver" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((driver) => (
+                  <SelectItem key={driver.name} value={driver.name}>
+                    {driver.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              value={betAmount}
+              onChange={(e) => setBetAmount(e.target.value)}
+              placeholder="Bet amount"
+              max={userPoints}
+            />
+            {betType && betDriver && betAmount && (
+              <div className="text-sm text-muted-foreground">
+                <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
+                <p>Multiplier: {betMultiplier.toFixed(2)}x</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="nextLap">
+          <div className="space-y-4">
+            <Select value={betType} onValueChange={(value) => setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select bet type" />
+              </SelectTrigger>
+              <SelectContent>
+                {nextLapBetOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={betDriver} onValueChange={(value) => setBetDriver(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select driver" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((driver) => (
+                  <SelectItem key={driver.name} value={driver.name}>
+                    {driver.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              value={betAmount}
+              onChange={(e) => setBetAmount(e.target.value)}
+              placeholder="Bet amount"
+              max={userPoints}
+            />
+            {betType && betDriver && betAmount && (
+              <div className="text-sm text-muted-foreground">
+                <p>Potential Win: {(Number(betAmount) * betMultiplier || 0).toFixed(2)} points</p>
+                <p>Multiplier: {betMultiplier.toFixed(2)}x</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+      <Button
+        onClick={handlePlaceBet}
+        disabled={!betType || !betDriver || !betAmount || Number(betAmount) <= 0 || Number(betAmount) > userPoints || isRaceFinished}
+        className="w-full"
+      >
+        Place Bet
+      </Button>
+    </div>
+  );
+
+  const BettingTrigger = forwardRef(({ children, ...props }, ref) => (
+    <Button
+      ref={ref}
+      onClick={() => setOpenBetting(true)}
+      className="w-full"
+      disabled={isRaceFinished}
+      {...props}
+    >
+      {children}
+    </Button>
+  ));
+
+  BettingTrigger.displayName = "BettingTrigger";
+
+  const BettingContent = ({ children }) => (
+    <div className="px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Place Your Bet</h3>
+        <p className="text-sm font-medium">Your Points: {userPoints}</p>
+      </div>
+      {children}
+    </div>
+  );
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -699,13 +872,13 @@ export default function LivePage() {
                         <span>Bateria</span>
                       </div>
                       <span className="font-bold">
-                        {selectedDriverData.battery}%
+                        {Number(selectedDriverData.battery).toFixed(2)}%
                       </span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2.5">
                       <div
                         className="bg-primary h-2.5 rounded-full"
-                        style={{ width: `${selectedDriverData.battery}%` }}
+                        style={{ width: `${Number(selectedDriverData.battery).toFixed(2)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -717,7 +890,7 @@ export default function LivePage() {
                         <span>Velocidade</span>
                       </div>
                       <span className="font-bold">
-                        {selectedDriverData.speed} km/h
+                        {Number(selectedDriverData.speed).toFixed(2)} km/h
                       </span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2.5">
@@ -728,7 +901,7 @@ export default function LivePage() {
                         }}
                       ></div>
                     </div>
-                  </div>
+                  </div>  
                   {/* Energia Usada */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
@@ -737,7 +910,7 @@ export default function LivePage() {
                         <span>Energia Usada</span>
                       </div>
                       <span className="font-bold">
-                        {selectedDriverData.energy} kWh
+                        {Number(selectedDriverData.energy).toFixed(2)} kWh
                       </span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2.5">
@@ -1096,180 +1269,46 @@ export default function LivePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Fazer uma Aposta</span>
+                <span>Betting</span>
                 <DollarSign className="w-5 h-5 text-primary" />
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold mb-4">
-                Seus Pontos: {userPoints}
-              </p>
-              <Tabs defaultValue="regular" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="regular">Apostas Regulares</TabsTrigger>
-                  <TabsTrigger value="nextLap">
-                    Apostas na Próxima Volta
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="regular">
-                  <div className="grid gap-4 py-4">
-                    {/* Tipo de Aposta */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betType" className="text-right">
-                        Tipo de Aposta
-                      </label>
-                      <Select
-                        value={betType}
-                        onValueChange={(value) => setBetType(value)}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Selecione o tipo de aposta" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {betOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Piloto */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betDriver" className="text-right">
-                        Piloto
-                      </label>
-                      <Select
-                        value={betDriver}
-                        onValueChange={(value) => setBetDriver(value)}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Selecione o piloto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {drivers.map((driver) => (
-                            <SelectItem key={driver.name} value={driver.name}>
-                              {driver.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Quantidade */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betAmount" className="text-right">
-                        Quantidade
-                      </label>
-                      <Input
-                        id="betAmount"
-                        type="number"
-                        value={betAmount}
-                        onChange={(e) => setBetAmount(e.target.value)}
-                        className="col-span-3"
-                        max={userPoints}
-                      />
-                    </div>
-                    {/* Multiplicador e Ganho Potencial */}
-                    {betType && betDriver && betAmount && (
-                      <div className="text-right">
-                        <p>
-                          Ganho Potencial:{" "}
-                          {(Number(betAmount) * betMultiplier || 0).toFixed(2)}{" "}
-                          pontos
-                        </p>
-                        <p>Multiplicador: {betMultiplier.toFixed(2)}x</p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                <TabsContent value="nextLap">
-                  <div className="grid gap-4 py-4">
-                    {/* Tipo de Aposta na Próxima Volta */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betType" className="text-right">
-                        Tipo de Aposta
-                      </label>
-                      <Select
-                        value={betType}
-                        onValueChange={(value) =>
-                          setBetType(`nextLap${value.charAt(0).toUpperCase() + value.slice(1)}`)
-                        }
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Selecione o tipo de aposta" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {nextLapBetOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Piloto */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betDriver" className="text-right">
-                        Piloto
-                      </label>
-                      <Select
-                        value={betDriver}
-                        onValueChange={(value) => setBetDriver(value)}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Selecione o piloto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {drivers.map((driver) => (
-                            <SelectItem key={driver.name} value={driver.name}>
-                              {driver.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Quantidade */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label htmlFor="betAmount" className="text-right">
-                        Quantidade
-                      </label>
-                      <Input
-                        id="betAmount"
-                        type="number"
-                        value={betAmount}
-                        onChange={(e) => setBetAmount(e.target.value)}
-                        className="col-span-3"
-                        max={userPoints}
-                      />
-                    </div>
-                    {/* Multiplicador e Ganho Potencial */}
-                    {betType && betDriver && betAmount && (
-                      <div className="text-right">
-                        <p>
-                          Ganho Potencial:{" "}
-                          {(Number(betAmount) * betMultiplier || 0).toFixed(2)}{" "}
-                          pontos
-                        </p>
-                        <p>Multiplicador: {betMultiplier.toFixed(2)}x</p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
-              <Button
-                onClick={handlePlaceBet}
-                disabled={
-                  !betType ||
-                  !betDriver ||
-                  !betAmount ||
-                  Number(betAmount) <= 0 ||
-                  Number(betAmount) > userPoints ||
-                  isRaceFinished
-                }
-                className="w-full mt-4"
-              >
-                Fazer Aposta
-              </Button>
+              {isDesktop ? (
+                <Dialog open={openBetting} onOpenChange={setOpenBetting}>
+                  <DialogTrigger asChild>
+                    <BettingTrigger>Open Betting</BettingTrigger>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Place Your Bet</DialogTitle>
+                      <DialogDescription>
+                        Choose your bet type, driver, and amount.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <BettingContent>
+                      <BettingForm />
+                    </BettingContent>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <Drawer open={openBetting} onOpenChange={setOpenBetting}>
+                  <DrawerTrigger asChild>
+                    <BettingTrigger>Open Betting</BettingTrigger>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle>Place Your Bet</DrawerTitle>
+                      <DrawerDescription>
+                        Choose your bet type, driver, and amount.
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <BettingContent>
+                      <BettingForm />
+                    </BettingContent>
+                  </DrawerContent>
+                </Drawer>
+              )}
             </CardContent>
           </Card>
         </div>
