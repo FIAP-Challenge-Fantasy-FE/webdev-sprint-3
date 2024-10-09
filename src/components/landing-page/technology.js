@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import CarroImg from '../../public/images/carro.jpeg'
 import { Card, CardContent } from "@/components/ui/card";
 
 const fadeInUp = {
@@ -62,7 +63,7 @@ export default function TechnologySection() {
             viewport={{ once: true }}
           >
             <Image
-              src="/images/carromahindra.jpg"
+              src={CarroImg}
               alt="Tecnologia de Veículos Conectados"
               layout="fill"
               objectFit="cover"
