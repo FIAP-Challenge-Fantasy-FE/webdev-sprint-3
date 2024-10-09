@@ -30,17 +30,15 @@ async function startRaceSimulation() {
       position: null,
       lapTime: null,
       speed: null,
-      battery: null,
-      energy: null,
+      battery: 100, // Starting with 100% battery
+      energy: 52,   // Starting with 52 kWh typical for Formula E cars
       performance: {
         averageSpeed: 200,
         consistency: 80,
         racecraft: 80,
       },
       energyManagement: {
-        energyUsed: 20,
-        regeneration: 5,
-        efficiency: 80,
+        efficiency: 90 + Math.random() * 10, // Efficiency between 90% and 100%
       },
       overtakingData: {
         overtakes: 0,
@@ -88,11 +86,11 @@ function updateRaceData(raceData) {
   drivers.forEach((driver) => {
     // Calculate lap time based on average speed and consistency
     const baseLapTime = 90; // Base lap time in seconds
-    const speedFactor = (220 - driver.performance.averageSpeed) / 20;
+    const lapSpeedFactor = (220 - driver.performance.averageSpeed) / 20;
     const consistencyFactor = (100 - driver.performance.consistency) / 100;
     const randomVariation = (Math.random() - 0.5) * 0.5; // Small random variation
     const lapTimeSeconds =
-      baseLapTime + speedFactor * 2 + consistencyFactor * 2 + randomVariation;
+      baseLapTime + lapSpeedFactor * 2 + consistencyFactor * 2 + randomVariation;
 
     driver.lapTime = secondsToLapTime(lapTimeSeconds);
 
@@ -100,17 +98,30 @@ function updateRaceData(raceData) {
     driver.speed =
       driver.performance.averageSpeed + (Math.random() - 0.5) * 0.5;
 
+    // Calculate energy used per lap
+    const totalRaceTimeMinutes = 45; // Total race time in minutes
+    const totalRaceEnergy = 52;      // Total energy in kWh
+    const averageLapTimeMinutes = totalRaceTimeMinutes / raceStatus.totalLaps;
+
+    const baseEnergyUsagePerLap = totalRaceEnergy / raceStatus.totalLaps; // kWh per lap
+    const efficiencyFactor = (100 - driver.energyManagement.efficiency) / 100;
+    const speedFactor = (driver.speed - 180) / 40; // Adjusting for speed range
+
+    const energyUsedThisLap =
+      baseEnergyUsagePerLap * (1 + efficiencyFactor + speedFactor * 0.05);
+
+    const regenerationThisLap = baseEnergyUsagePerLap * 0.1; // Regenerate 10%
+
     // Update battery and energy management
-    driver.battery = Math.max(
-      0,
-      driver.battery -
-        driver.energyManagement.energyUsed +
-        driver.energyManagement.regeneration
-    );
     driver.energy = Math.max(
       0,
-      driver.energy - driver.energyManagement.energyUsed
+      driver.energy - energyUsedThisLap + regenerationThisLap
     );
+
+    driver.battery = (driver.energy / totalRaceEnergy) * 100;
+
+    driver.battery = Math.min(driver.battery, 100);
+    driver.energy = Math.min(driver.energy, totalRaceEnergy);
 
     // Update overtaking and defensive actions based on racecraft
     driver.overtakingData.overtakes +=
