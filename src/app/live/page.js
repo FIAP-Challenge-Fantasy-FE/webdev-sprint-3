@@ -570,60 +570,156 @@ export default function LivePage() {
     </Dialog>
   );
 
-  // Update the renderCarData function
-  const renderCarData = () => {
-    if (!selectedDriver) return null;
+  // Update the Race Status Card
+  const RaceStatusCard = () => (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between">
+          <span>Status da Corrida</span>
+          <Flag className="w-5 h-5 text-primary" />
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-sm text-muted-foreground">Voltas</p>
+            <p className="text-xl font-bold">
+              {raceData?.raceStatus.lapsCompleted ?? 0}/
+              {raceData?.raceStatus.totalLaps ?? 0}
+            </p>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-sm text-muted-foreground">
+              Tempo Decorrido
+            </p>
+            <p className="text-xl font-bold">
+              {raceData?.raceStatus.timeElapsed ?? "00:00:00"}
+            </p>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <p className="text-sm text-muted-foreground">Líder</p>
+            <p className="text-xl font-bold">
+              {raceData?.latestLapData?.leader ?? "N/A"}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Dados do Carro: {selectedDriver.name}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Velocidade</p>
-              <p className="text-2xl font-bold">
-                {Number(selectedDriver.speed).toFixed(2)} km/h
-              </p>
+  // Update the Selected Driver Car Data Card
+  const SelectedDriverCard = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Gauge className="w-5 h-5" />
+            <span className="truncate">Dados do Carro: {selectedDriver.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={selectPreviousDriver}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Select
+              value={selectedDriver.name}
+              onValueChange={(value) =>
+                setSelectedDriver(
+                  drivers.find((d) => d.name === value) || drivers[0]
+                )
+              }
+            >
+              <SelectTrigger className="w-[140px] sm:w-[180px]">
+                <SelectValue placeholder="Selecione um piloto" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((driver) => (
+                  <SelectItem
+                    key={driver.name}
+                    value={driver.name}
+                  >
+                    {driver.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={selectNextDriver}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Bateria */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Battery className="w-4 h-4" />
+                <span>Bateria</span>
+              </div>
+              <span className="font-bold">
+                {Number(selectedDriverData.battery).toFixed(2)}%
+              </span>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Bateria</p>
-              <p className="text-2xl font-bold">
-                {Number(selectedDriver.battery).toFixed(2)}%
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Energia Usada</p>
-              <p className="text-2xl font-bold">
-                {Number(selectedDriver.energy).toFixed(2)} kWh
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Última Volta</p>
-              <p className="text-2xl font-bold">{selectedDriver.lapTime}</p>
+            <div className="w-full bg-secondary rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full"
+                style={{ width: `${Number(selectedDriverData.battery).toFixed(2)}%` }}
+              ></div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  useEffect(() => {
-    if (!selectedDriver && drivers.length > 0) {
-      const interval = setInterval(() => {
-        setSelectedDriver((prev) => {
-          const currentIndex = drivers.findIndex((d) => d.name === prev?.name);
-          const nextIndex = (currentIndex + 1) % drivers.length;
-          return drivers[nextIndex];
-        });
-      }, 5000); // Change driver every 5 seconds
-
-      return () => clearInterval(interval);
-    }
-  }, [drivers, selectedDriver]);
+          {/* Velocidade */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Gauge className="w-4 h-4" />
+                <span>Velocidade</span>
+              </div>
+              <span className="font-bold">
+                {Number(selectedDriverData.speed).toFixed(2)} km/h
+              </span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full"
+                style={{
+                  width: `${(selectedDriverData.speed / 250) * 100}%`,
+                }}
+              ></div>
+            </div>
+          </div>  
+          {/* Energia Usada */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                <span>Energia Usada</span>
+              </div>
+              <span className="font-bold">
+                {Number(selectedDriverData.energy).toFixed(2)} kWh
+              </span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full"
+                style={{
+                  width: `${(selectedDriverData.energy / 30) * 100}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   const BettingForm = () => (
     <div className="space-y-4">
@@ -779,153 +875,10 @@ export default function LivePage() {
           </Card>
 
           {/* Race Status Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <span>Status da Corrida</span>
-                <Flag className="w-5 h-5 text-primary" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Voltas</p>
-                  <p className="text-2xl font-bold">
-                    {raceData?.raceStatus.lapsCompleted ?? 0}/
-                    {raceData?.raceStatus.totalLaps ?? 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Tempo Decorrido
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {raceData?.raceStatus.timeElapsed ?? "00:00:00"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Líder</p>
-                  <p className="text-2xl font-bold">
-                    {raceData?.latestLapData?.leader ?? "N/A"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <RaceStatusCard />
 
           {/* Selected Driver Car Data Card */}
-          {selectedDriver && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Gauge className="w-5 h-5" />
-                    Dados do Carro: {selectedDriver.name}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={selectPreviousDriver}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Select
-                      value={selectedDriver.name}
-                      onValueChange={(value) =>
-                        setSelectedDriver(
-                          drivers.find((d) => d.name === value) || drivers[0]
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Selecione um piloto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {drivers.map((driver) => (
-                          <SelectItem
-                            key={driver.name}
-                            value={driver.name}
-                          >
-                            {driver.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={selectNextDriver}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Bateria */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Battery className="w-4 h-4" />
-                        <span>Bateria</span>
-                      </div>
-                      <span className="font-bold">
-                        {Number(selectedDriverData.battery).toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2.5">
-                      <div
-                        className="bg-primary h-2.5 rounded-full"
-                        style={{ width: `${Number(selectedDriverData.battery).toFixed(2)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  {/* Velocidade */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Gauge className="w-4 h-4" />
-                        <span>Velocidade</span>
-                      </div>
-                      <span className="font-bold">
-                        {Number(selectedDriverData.speed).toFixed(2)} km/h
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2.5">
-                      <div
-                        className="bg-primary h-2.5 rounded-full"
-                        style={{
-                          width: `${(selectedDriverData.speed / 250) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>  
-                  {/* Energia Usada */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4" />
-                        <span>Energia Usada</span>
-                      </div>
-                      <span className="font-bold">
-                        {Number(selectedDriverData.energy).toFixed(2)} kWh
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2.5">
-                      <div
-                        className="bg-primary h-2.5 rounded-full"
-                        style={{
-                          width: `${(selectedDriverData.energy / 30) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {selectedDriver && <SelectedDriverCard />}
 
           {/* Race Details and Final Dashboard Buttons */}
           {isRaceFinished ? (
