@@ -614,7 +614,7 @@ export default function LivePage() {
         <CardTitle className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Gauge className="w-5 h-5" />
-            <span className="truncate">Dados do Carro: {selectedDriver.name}</span>
+            <span className="truncate max-w-[200px]">{selectedDriver.name}</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -672,7 +672,7 @@ export default function LivePage() {
             <div className="w-full bg-secondary rounded-full h-2.5">
               <div
                 className="bg-primary h-2.5 rounded-full"
-                style={{ width: `${Number(selectedDriverData.battery).toFixed(2)}%` }}
+                style={{ width: `${Math.min(Number(selectedDriverData.battery), 100).toFixed(2)}%` }}
               ></div>
             </div>
           </div>
@@ -691,7 +691,7 @@ export default function LivePage() {
               <div
                 className="bg-primary h-2.5 rounded-full"
                 style={{
-                  width: `${(selectedDriverData.speed / 250) * 100}%`,
+                  width: `${Math.min((selectedDriverData.speed / 250) * 100, 100)}%`,
                 }}
               ></div>
             </div>
@@ -711,7 +711,7 @@ export default function LivePage() {
               <div
                 className="bg-primary h-2.5 rounded-full"
                 style={{
-                  width: `${(selectedDriverData.energy / 30) * 100}%`,
+                  width: `${Math.min((selectedDriverData.energy / 30) * 100, 100)}%`,
                 }}
               ></div>
             </div>
@@ -845,6 +845,13 @@ export default function LivePage() {
     </div>
   );
 
+  // Initialize selectedDriver when drivers data is available
+  useEffect(() => {
+    if (drivers.length > 0 && !selectedDriver) {
+      setSelectedDriver(drivers[0]);
+    }
+  }, [drivers, selectedDriver]);
+
   return (
     <div className="container mx-auto p-4 space-y-4">
       <h1 className="text-3xl font-bold text-center mb-6">
@@ -876,6 +883,55 @@ export default function LivePage() {
 
           {/* Race Status Card */}
           <RaceStatusCard />
+
+          {/* Betting Call-to-Action (visible on mobile) */}
+          <div className="lg:hidden">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Betting</span>
+                  <DollarSign className="w-5 h-5 text-primary" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isDesktop ? (
+                  <Dialog open={openBetting} onOpenChange={setOpenBetting}>
+                    <DialogTrigger asChild>
+                      <BettingTrigger>Open Betting</BettingTrigger>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Place Your Bet</DialogTitle>
+                        <DialogDescription>
+                          Choose your bet type, driver, and amount.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <BettingContent>
+                        <BettingForm />
+                      </BettingContent>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Drawer open={openBetting} onOpenChange={setOpenBetting}>
+                    <DrawerTrigger asChild>
+                      <BettingTrigger>Open Betting</BettingTrigger>
+                    </DrawerTrigger>
+                    <DrawerContent>
+                      <DrawerHeader>
+                        <DrawerTitle>Place Your Bet</DrawerTitle>
+                        <DrawerDescription>
+                          Choose your bet type, driver, and amount.
+                        </DrawerDescription>
+                      </DrawerHeader>
+                      <BettingContent>
+                        <BettingForm />
+                      </BettingContent>
+                    </DrawerContent>
+                  </Drawer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Selected Driver Car Data Card */}
           {selectedDriver && <SelectedDriverCard />}
@@ -1218,52 +1274,54 @@ export default function LivePage() {
             </TabsContent>
           </Tabs>
 
-          {/* Betting Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Betting</span>
-                <DollarSign className="w-5 h-5 text-primary" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isDesktop ? (
-                <Dialog open={openBetting} onOpenChange={setOpenBetting}>
-                  <DialogTrigger asChild>
-                    <BettingTrigger>Open Betting</BettingTrigger>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Place Your Bet</DialogTitle>
-                      <DialogDescription>
-                        Choose your bet type, driver, and amount.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <BettingContent>
-                      <BettingForm />
-                    </BettingContent>
-                  </DialogContent>
-                </Dialog>
-              ) : (
-                <Drawer open={openBetting} onOpenChange={setOpenBetting}>
-                  <DrawerTrigger asChild>
-                    <BettingTrigger>Open Betting</BettingTrigger>
-                  </DrawerTrigger>
-                  <DrawerContent>
-                    <DrawerHeader>
-                      <DrawerTitle>Place Your Bet</DrawerTitle>
-                      <DrawerDescription>
-                        Choose your bet type, driver, and amount.
-                      </DrawerDescription>
-                    </DrawerHeader>
-                    <BettingContent>
-                      <BettingForm />
-                    </BettingContent>
-                  </DrawerContent>
-                </Drawer>
-              )}
-            </CardContent>
-          </Card>
+          {/* Betting Card (visible on desktop) */}
+          <div className="hidden lg:block">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Betting</span>
+                  <DollarSign className="w-5 h-5 text-primary" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isDesktop ? (
+                  <Dialog open={openBetting} onOpenChange={setOpenBetting}>
+                    <DialogTrigger asChild>
+                      <BettingTrigger>Open Betting</BettingTrigger>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Place Your Bet</DialogTitle>
+                        <DialogDescription>
+                          Choose your bet type, driver, and amount.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <BettingContent>
+                        <BettingForm />
+                      </BettingContent>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Drawer open={openBetting} onOpenChange={setOpenBetting}>
+                    <DrawerTrigger asChild>
+                      <BettingTrigger>Open Betting</BettingTrigger>
+                    </DrawerTrigger>
+                    <DrawerContent>
+                      <DrawerHeader>
+                        <DrawerTitle>Place Your Bet</DrawerTitle>
+                        <DrawerDescription>
+                          Choose your bet type, driver, and amount.
+                        </DrawerDescription>
+                      </DrawerHeader>
+                      <BettingContent>
+                        <BettingForm />
+                      </BettingContent>
+                    </DrawerContent>
+                  </Drawer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Sidebar Components */}
