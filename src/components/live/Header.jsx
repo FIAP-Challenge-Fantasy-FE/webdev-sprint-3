@@ -46,14 +46,12 @@ export default function LivePageHeader() {
       animate={{ y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
     >
-      <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-8">
+        <Link href="/" className="flex items-center space-x-2">
+          <Zap className="h-6 w-6 text-primary" />
+          <span className="hidden font-bold sm:inline-block text-primary">Formula E Live</span>
+        </Link>
         <div className="flex items-center space-x-4">
-          <Link href="/" className="flex items-center space-x-2">
-            <Zap className="h-6 w-6 text-primary" />
-            <span className="hidden font-bold sm:inline-block text-primary">Formula E Live</span>
-          </Link>
-        </div>
-        <nav className="flex items-center space-x-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -112,7 +110,7 @@ export default function LivePageHeader() {
               Log in
             </Button>
           )}
-        </nav>
+        </div>
       </div>
     </motion.header>
   )
