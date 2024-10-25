@@ -1,27 +1,16 @@
-import React, { useState, useCallback, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import React, { useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import {
-  Battery,
-  Gauge,
-  Zap,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
-import { ErrorBoundary } from 'react-error-boundary'
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Gauge, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { ErrorBoundary } from "react-error-boundary";
 
 function ErrorFallback({ error, resetErrorBoundary }) {
   return (
@@ -36,7 +25,7 @@ function ErrorFallback({ error, resetErrorBoundary }) {
         </Button>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 export default function SelectedDriverCard({
@@ -45,40 +34,50 @@ export default function SelectedDriverCard({
   setSelectedDriver,
   raceData,
 }) {
-  const [isHovered, setIsHovered] = useState(false)
+  const [isHovered, setIsHovered] = useState(false);
 
   const selectNextDriver = useCallback(() => {
     const currentIndex = drivers.findIndex(
       (d) => d.name === selectedDriver.name
-    )
-    const nextIndex = (currentIndex + 1) % drivers.length
-    setSelectedDriver(drivers[nextIndex])
-  }, [drivers, selectedDriver, setSelectedDriver])
+    );
+    const nextIndex = (currentIndex + 1) % drivers.length;
+    setSelectedDriver(drivers[nextIndex]);
+  }, [drivers, selectedDriver, setSelectedDriver]);
 
   const selectPreviousDriver = useCallback(() => {
     const currentIndex = drivers.findIndex(
       (d) => d.name === selectedDriver.name
-    )
-    const previousIndex = (currentIndex - 1 + drivers.length) % drivers.length
-    setSelectedDriver(drivers[previousIndex])
-  }, [drivers, selectedDriver, setSelectedDriver])
+    );
+    const previousIndex = (currentIndex - 1 + drivers.length) % drivers.length;
+    setSelectedDriver(drivers[previousIndex]);
+  }, [drivers, selectedDriver, setSelectedDriver]);
 
   const getDriverData = useCallback(
     (driverName) => {
       if (!raceData || !raceData.drivers)
-        return { name: driverName, battery: 0, speed: 0, energy: 0 }
-      const driver = raceData.drivers.find((d) => d.name === driverName)
+        return {
+          name: driverName,
+          speed: 0,
+          energyManagement: { efficiency: 0 },
+          performance: { consistency: 0, racecraft: 0 },
+        };
+      const driver = raceData.drivers.find((d) => d.name === driverName);
       return (
-        driver || { name: driverName, battery: 0, speed: 0, energy: 0 }
-      )
+        driver || {
+          name: driverName,
+          speed: 0,
+          energyManagement: { efficiency: 0 },
+          performance: { consistency: 0, racecraft: 0 },
+        }
+      );
     },
     [raceData]
-  )
+  );
 
   const selectedDriverData = useMemo(
     () => getDriverData(selectedDriver.name),
     [getDriverData, selectedDriver.name]
-  )
+  );
 
   return (
     <ErrorBoundary
@@ -156,17 +155,8 @@ export default function SelectedDriverCard({
               <div className="space-y-6">
                 <DriverStat
                   icon={
-                    <Battery className="w-5 h-5 text-primary dark:text-primary-light" />
-                  }
-                  label="Battery"
-                  value={selectedDriverData.battery}
-                  unit="%"
-                  maxValue={100}
-                />
-                <DriverStat
-                  icon={
                     <Gauge className="w-5 h-5 text-primary dark:text-primary-light" />
-                  }
+                  } // Speed icon
                   label="Speed"
                   value={selectedDriverData.speed}
                   unit="km/h"
@@ -175,11 +165,29 @@ export default function SelectedDriverCard({
                 <DriverStat
                   icon={
                     <Zap className="w-5 h-5 text-primary dark:text-primary-light" />
-                  }
-                  label="Energy Used"
-                  value={selectedDriverData.energy}
-                  unit="kWh"
-                  maxValue={30}
+                  } // Energy Efficiency icon
+                  label="Energy Efficiency"
+                  value={selectedDriverData.energyManagement.efficiency}
+                  unit="%"
+                  maxValue={100}
+                />
+                <DriverStat
+                  icon={
+                    <Gauge className="w-5 h-5 text-primary dark:text-primary-light rotate-45" />
+                  } // Consistency icon
+                  label="Consistency"
+                  value={selectedDriverData.performance.consistency}
+                  unit="%"
+                  maxValue={100}
+                />
+                <DriverStat
+                  icon={
+                    <ChevronRight className="w-5 h-5 text-primary dark:text-primary-light" />
+                  } // Racecraft icon
+                  label="Racecraft"
+                  value={selectedDriverData.performance.racecraft}
+                  unit="%"
+                  maxValue={100}
                 />
               </div>
             </CardContent>
@@ -187,11 +195,11 @@ export default function SelectedDriverCard({
         </motion.div>
       </AnimatePresence>
     </ErrorBoundary>
-  )
+  );
 }
 
 function DriverStat({ icon, label, value, unit, maxValue }) {
-  const percentage = Math.min((value / maxValue) * 100, 100)
+  const percentage = Math.min((value / maxValue) * 100, 100);
 
   return (
     <div>
@@ -208,13 +216,13 @@ function DriverStat({ icon, label, value, unit, maxValue }) {
       </div>
       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
         <motion.div
-          initial={{ width: '0%' }}
+          initial={{ width: "0%" }}
           animate={{ width: `${percentage}%` }}
-          transition={{ duration: 1, ease: 'easeInOut' }}
+          transition={{ duration: 1, ease: "easeInOut" }}
           className="bg-primary dark:bg-primary-light h-2.5 rounded-full"
           style={{ width: `${percentage}%` }}
         ></motion.div>
       </div>
     </div>
-  )
+  );
 }

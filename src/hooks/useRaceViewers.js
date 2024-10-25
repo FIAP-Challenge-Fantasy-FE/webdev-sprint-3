@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp } from "firebase/database";
-import { getFirestore, doc, onSnapshot } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  onDisconnect,
+  set,
+  serverTimestamp,
+} from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const auth = getAuth();
-const rtdb = getDatabase();
-const firestore = getFirestore();
 
 export function useRaceViewers(raceId) {
   const [viewerCount, setViewerCount] = useState(0);
@@ -16,8 +20,10 @@ export function useRaceViewers(raceId) {
       return;
     }
 
+    const db = getDatabase();
+
     const setupPresence = (uid) => {
-      const userStatusRTDBRef = ref(rtdb, `/status/${raceId}/${uid}`);
+      const userStatusRTDBRef = ref(db, `/status/${raceId}/${uid}`);
 
       const isOfflineForRTDB = {
         state: 'offline',
@@ -29,12 +35,12 @@ export function useRaceViewers(raceId) {
         last_changed: serverTimestamp(),
       };
 
-      const connectedRef = ref(rtdb, '.info/connected');
-      
+      const connectedRef = ref(db, '.info/connected');
+
       const unsubscribeConnection = onValue(connectedRef, (snapshot) => {
         if (snapshot.val() === true) {
           console.log('Connected to RTDB');
-          
+
           // When we disconnect, remove this device
           onDisconnect(userStatusRTDBRef)
             .set(isOfflineForRTDB)
@@ -53,6 +59,7 @@ export function useRaceViewers(raceId) {
 
       return () => {
         unsubscribeConnection();
+        // Clean up on unmount
         set(userStatusRTDBRef, isOfflineForRTDB);
         console.log('Set offline status in RTDB');
       };
@@ -68,14 +75,23 @@ export function useRaceViewers(raceId) {
         console.log('User authenticated, setting up presence');
         unsubscribePresence = setupPresence(user.uid);
       } else {
-        console.log('User not authenticated');
+        console.log('User not authenticated, setting up presence with anonymous ID');
+        const anonymousId = 'anonymous_' + Math.random().toString(36).substr(2, 9);
+        unsubscribePresence = setupPresence(anonymousId);
       }
     });
 
-    const unsubscribeViewerCount = onSnapshot(doc(firestore, `races/${raceId}`), (doc) => {
-      const count = doc.data()?.viewerCount || 0;
-      setViewerCount(count);
-      console.log('Updated viewer count:', count);
+    const viewersRef = ref(db, `/status/${raceId}`);
+    const unsubscribeViewerCount = onValue(viewersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const viewers = snapshot.val();
+        const viewerIds = Object.keys(viewers);
+        const onlineViewers = viewerIds.filter((id) => viewers[id].state === 'online');
+        setViewerCount(onlineViewers.length);
+        console.log('Updated viewer count:', onlineViewers.length);
+      } else {
+        setViewerCount(0);
+      }
     });
 
     return () => {

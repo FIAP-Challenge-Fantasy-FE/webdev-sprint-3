@@ -6,6 +6,7 @@ import { useRace } from "@/contexts/RaceContext"
 import { useBetting } from "@/hooks/useBetting"
 
 export default function CompactBettingForm({ onPlaceBet, setShowLoginDialog, isRaceFinished, onCancel }) {
+  
   const [betType, setBetType] = useState("")
   const [betDriver, setBetDriver] = useState("")
   const [betAmount, setBetAmount] = useState("")

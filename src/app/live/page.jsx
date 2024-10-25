@@ -21,8 +21,10 @@ import CompactBettingForm from "@/components/live/CompactBettingForm";
 import DraggableWidgets from "@/components/live/DraggableWidgets";
 
 export default function LivePage() {
-  const { raceData, drivers, isRaceFinished, isLoading, error } = useRace()
-  const { user, loading: userLoading } = useUser()
+  const { raceData, drivers, isRaceFinished, isLoading, error, currentRaceId } = useRace();
+  const { user, loading: userLoading } = useUser();
+  const viewerCount = useRaceViewers(currentRaceId);
+
   const { userBets, placeBet, calculateBetMultiplier } = useBetting()
   const { showToast } = useToastContext()
   const [selectedDriver, setSelectedDriver] = useState(() => {
@@ -33,15 +35,14 @@ export default function LivePage() {
   const [pendingBet, setPendingBet] = useState(null)
   const [chatMessages, setChatMessages] = useState([])
   const isMobile = useMediaQuery("(max-width: 768px)")
-  const viewerCount = useRaceViewers(raceData?.id)
   const [showBettingDrawer, setShowBettingDrawer] = useState(false)
   const [showBettingForm, setShowBettingForm] = useState(false);
 
   useEffect(() => {
-    if (drivers && drivers.length > 0 && !selectedDriver) {
-      setSelectedDriver(drivers[0])
+    if (drivers.length > 0 && !selectedDriver) {
+      setSelectedDriver(drivers[0]);
     }
-  }, [drivers, selectedDriver])
+  }, [drivers, selectedDriver, setSelectedDriver]);
 
   useEffect(() => {
     if (error) {

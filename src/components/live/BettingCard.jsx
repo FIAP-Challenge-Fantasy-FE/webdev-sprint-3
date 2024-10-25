@@ -13,6 +13,7 @@ import { useMediaQuery } from '@/hooks/use-media-query'
 
 
 export default function BettingCard({ isRaceFinished, onPlaceBet, setShowLoginDialog }) {
+  
   const { betOptions, nextLapBetOptions, drivers } = useRace()
   const { userProfile } = useUser()
   const { calculateBetMultiplier } = useBetting()

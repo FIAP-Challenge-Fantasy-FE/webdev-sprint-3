@@ -1,17 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import {
-  onSnapshot,
-  collection,
-  query,
-  orderBy,
-  limit,
-  doc,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useRaceViewers } from "@/hooks/useRaceViewers";
+import { getDatabase, ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
+import { collection, getDocs } from "firebase/firestore";
+import { db as firestoreDb } from "@/lib/firebase"; // Firestore instance
 
 const RaceContext = createContext(undefined);
 
@@ -35,18 +27,16 @@ export const RaceProvider = ({ children }) => {
   const [viewerCount, setViewerCount] = useState(0);
 
   useEffect(() => {
+    // Fetch bet options from Firestore
     const fetchInitialData = async () => {
       try {
-        const [betOptionsSnapshot, nextLapBetOptionsSnapshot] =
-          await Promise.all([
-            getDocs(collection(db, "betOptions")),
-            getDocs(collection(db, "nextLapBetOptions")),
-          ]);
+        const [betOptionsSnapshot, nextLapBetOptionsSnapshot] = await Promise.all([
+          getDocs(collection(firestoreDb, "betOptions")),
+          getDocs(collection(firestoreDb, "nextLapBetOptions")),
+        ]);
 
         setBetOptions(betOptionsSnapshot.docs.map((doc) => doc.data()));
-        setNextLapBetOptions(
-          nextLapBetOptionsSnapshot.docs.map((doc) => doc.data())
-        );
+        setNextLapBetOptions(nextLapBetOptionsSnapshot.docs.map((doc) => doc.data()));
       } catch (err) {
         setError(
           err instanceof Error
@@ -60,20 +50,28 @@ export const RaceProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const racesQuery = query(
-      collection(db, "races"),
-      orderBy("startTime", "desc"),
-      limit(1)
-    );
-    const unsubRaces = onSnapshot(
+    const db = getDatabase();
+    const racesRef = ref(db, "races");
+    const racesQuery = query(racesRef, orderByChild("startTime"), limitToLast(1));
+
+    const unsubscribe = onValue(
       racesQuery,
       (snapshot) => {
-        if (!snapshot.empty) {
-          const raceDoc = snapshot.docs[0];
-          setCurrentRaceId(raceDoc.id);
-          setRaceData(raceDoc.data());
-          setIsRaceFinished(raceDoc.data().status === "finished");
-          setDrivers(raceDoc.data().drivers);
+        if (snapshot.exists()) {
+          const racesData = snapshot.val();
+          const raceIds = Object.keys(racesData);
+          const raceId = raceIds[0];
+          const race = racesData[raceId];
+
+          setCurrentRaceId(raceId);
+          setRaceData((prevData) => ({ ...prevData, ...race }));
+          setIsRaceFinished(race.status === "finished");
+          setDrivers(race.drivers ? Object.values(race.drivers) : []);
+        } else {
+          // No races found
+          setCurrentRaceId(null);
+          setRaceData(null);
+          setDrivers([]);
         }
         setIsLoading(false);
       },
@@ -83,21 +81,69 @@ export const RaceProvider = ({ children }) => {
       }
     );
 
-    return () => unsubRaces();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!currentRaceId) return;
 
-    const raceDocRef = doc(db, "races", currentRaceId);
-    const unsubRace = onSnapshot(
-      raceDocRef,
-      (doc) => {
-        if (doc.exists()) {
-          setRaceData(doc.data());
-          setIsRaceFinished(doc.data().status === "finished");
-          setDrivers(doc.data().drivers);
-          setViewerCount(doc.data().viewerCount || 0);
+    const db = getDatabase();
+    const raceRef = ref(db, `races/${currentRaceId}`);
+
+    // Subscribe to raceStatus
+    const raceStatusRef = ref(db, `races/${currentRaceId}/raceStatus`);
+    const unsubscribeRaceStatus = onValue(
+      raceStatusRef,
+      (snapshot) => {
+        const raceStatus = snapshot.val();
+        setRaceData((prevData) => ({ ...prevData, raceStatus }));
+        setIsRaceFinished(raceStatus?.status === "finished");
+      },
+      (err) => {
+        setError(err);
+      }
+    );
+
+    // Subscribe to drivers
+    const driversRef = ref(db, `races/${currentRaceId}/drivers`);
+    const unsubscribeDrivers = onValue(
+      driversRef,
+      (snapshot) => {
+        const driversData = snapshot.val();
+        const driversList = driversData ? Object.values(driversData) : [];
+        setDrivers(driversList);
+        setRaceData((prevData) => ({ ...prevData, drivers: driversList }));
+      },
+      (err) => {
+        setError(err);
+      }
+    );
+
+    // Subscribe to latestLapData
+    const latestLapDataRef = ref(db, `races/${currentRaceId}/latestLapData`);
+    const unsubscribeLatestLapData = onValue(
+      latestLapDataRef,
+      (snapshot) => {
+        const latestLapData = snapshot.val();
+        setRaceData((prevData) => ({ ...prevData, latestLapData }));
+      },
+      (err) => {
+        setError(err);
+      }
+    );
+
+    // Subscribe to viewerCount
+    const viewersRef = ref(db, `/status/${currentRaceId}`);
+    const unsubscribeViewerCount = onValue(
+      viewersRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const viewers = snapshot.val();
+          const viewerIds = Object.keys(viewers);
+          const onlineViewers = viewerIds.filter((id) => viewers[id].state === 'online');
+          setViewerCount(onlineViewers.length);
+        } else {
+          setViewerCount(0);
         }
       },
       (err) => {
@@ -105,7 +151,12 @@ export const RaceProvider = ({ children }) => {
       }
     );
 
-    return () => unsubRace();
+    return () => {
+      unsubscribeRaceStatus();
+      unsubscribeDrivers();
+      unsubscribeLatestLapData();
+      unsubscribeViewerCount();
+    };
   }, [currentRaceId]);
 
   const value = {

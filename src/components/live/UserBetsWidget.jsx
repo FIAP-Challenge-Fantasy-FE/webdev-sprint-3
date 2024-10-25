@@ -16,6 +16,7 @@ export default function UserBetsWidget({ isRaceFinished }) {
   const { drivers } = useRace()
   const { user } = useUser()
   const { showToast } = useToastContext()
+  
 
   const handlePlaceBet = async (betType, betDriver, betAmount) => {
     if (!user) {
