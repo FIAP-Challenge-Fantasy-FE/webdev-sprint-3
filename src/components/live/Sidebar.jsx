@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import LeaderboardTab from './Leaderboard'
-import ChatTab from './Chat'
-import UserBetsTab from './UserBet'
+import Leaderboard from './Leaderboard'
+import ChatTab from './ChatTab'
+import UserBetsTab from './UserBetsTab'
 import BettingCard from './BettingCard'
+
 
 export default function Sidebar({
   raceData,
@@ -30,7 +31,7 @@ export default function Sidebar({
           <TabsTrigger value="bets">Your Bets</TabsTrigger>
         </TabsList>
         <TabsContent value="leaderboard">
-          <LeaderboardTab raceData={raceData} />
+          <Leaderboard drivers={raceData?.drivers} isLoading={!raceData} />
         </TabsContent>
         <TabsContent value="chat">
           <ChatTab

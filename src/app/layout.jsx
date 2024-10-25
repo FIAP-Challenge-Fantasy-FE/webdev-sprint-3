@@ -2,7 +2,7 @@
 
 import "./globals.css";
 import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/providers/theme-provider";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RaceProvider } from "@/contexts/RaceContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 

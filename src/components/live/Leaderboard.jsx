@@ -1,104 +1,121 @@
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Flag } from "lucide-react"
+import { motion } from 'framer-motion'
+import { Trophy, Loader2 } from "lucide-react"
 
-export default function LeaderboardTab({ raceData }) {
-  const getDriverStats = (driverName) => {
-    if (!raceData || !raceData.drivers) return {}
-    const driver = raceData.drivers.find((d) => d.name === driverName)
-    if (!driver) return {}
 
-    const { performance, energyManagement, overtakingData } = driver
-    return { ...performance, ...energyManagement, ...overtakingData }
-  }
+export default function Leaderboard({ drivers, isLoading = false }) {
+  const [openPopoverId, setOpenPopoverId] = useState(null)
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Flag className="w-5 h-5" />
-          Live Leaderboard
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px]">
-          {raceData?.drivers.map((driver) => (
-            <Popover key={driver.name}>
-              <PopoverTrigger asChild>
-                <div className="flex items-center justify-between py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <div className="font-bold text-lg w-8">
-                      {driver.position}
-                    </div>
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage
-                        src={driver.avatar}
-                        alt={driver.name}
-                      />
-                      <AvatarFallback>
-                        {driver.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-semibold">
-                        {driver.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {driver.team}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold">
-                      {driver.lapTime}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Last Lap
-                    </div>
-                  </div>
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium leading-none">
-                      {driver.name}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {driver.team}
-                    </p>
-                  </div>
-                  <div className="grid gap-2">
-                    {Object.entries(getDriverStats(driver.name)).map(
-                      ([key, value]) => (
-                        <div
-                          key={key}
-                          className="grid grid-cols-2 items-center gap-4"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Card className="bg-white dark:bg-gray-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-2xl font-bold flex items-center space-x-2 text-primary dark:text-primary-light">
+            <Trophy className="w-6 h-6" />
+            <span>Live Leaderboard</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : !drivers || drivers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No driver data available
+            </div>
+          ) : (
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">Pos</TableHead>
+                    <TableHead>Driver</TableHead>
+                    <TableHead>Team</TableHead>
+                    <TableHead className="text-right">Points</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {drivers.map((driver) => (
+                    <Popover
+                      key={driver.name}
+                      open={openPopoverId === driver.name}
+                      onOpenChange={(open) => setOpenPopoverId(open ? driver.name : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <TableRow 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setOpenPopoverId(driver.name)}
                         >
-                          <span className="text-sm">
-                            {key.charAt(0).toUpperCase() +
-                              key.slice(1)}
-                          </span>
-                          <span className="font-medium">
-                            {typeof value === "number"
-                              ? value.toFixed(2)
-                              : value}
-                          </span>
+                          <TableCell className="font-medium">
+                            {driver.position <= 3 ? (
+                              <Badge variant={driver.position === 1 ? "default" : driver.position === 2 ? "secondary" : "outline"}>
+                                {driver.position}
+                              </Badge>
+                            ) : (
+                              driver.position
+                            )}
+                          </TableCell>
+                          <TableCell>{driver.name}</TableCell>
+                          <TableCell>{driver.team}</TableCell>
+                          <TableCell className="text-right">{driver.points}</TableCell>
+                        </TableRow>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
+                        <div className="grid gap-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium leading-none">{driver.name}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {driver.team}
+                            </p>
+                          </div>
+                          <div className="grid gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Position:</span>
+                              <span className="font-medium">{driver.position}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Points:</span>
+                              <span className="font-medium">{driver.points}</span>
+                            </div>
+                            {driver.lapTime && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm">Last Lap:</span>
+                                <span className="font-medium">{driver.lapTime}</span>
+                              </div>
+                            )}
+                            {driver.speed && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm">Speed:</span>
+                                <span className="font-medium">{driver.speed} km/h</span>
+                              </div>
+                            )}
+                            {driver.energy && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm">Energy:</span>
+                                <span className="font-medium">{driver.energy}%</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          ))}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+                      </PopoverContent>
+                    </Popover>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   )
 }
