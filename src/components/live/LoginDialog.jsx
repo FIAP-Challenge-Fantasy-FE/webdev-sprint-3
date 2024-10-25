@@ -32,19 +32,19 @@ export default function LoginDialog({ showLoginDialog, setShowLoginDialog, onLog
     <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Login Required</DialogTitle>
+          <DialogTitle>Login Necessário</DialogTitle>
           <DialogDescription>
-            Please log in with your Google account to continue.
+            Por favor, faça login com sua conta do Google para continuar.
           </DialogDescription>
         </DialogHeader>
         <Button onClick={handleLogin} disabled={isLoading}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Logging in...
+              Fazendo login...
             </>
           ) : (
-            'Login with Google'
+            'Login com Google'
           )}
         </Button>
       </DialogContent>

@@ -13,11 +13,11 @@ export default function UserBetsTab({ userBets, isRaceFinished }) {
       >
         <div className="flex items-center space-x-2 mb-4">
           <DollarSign className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Your Bets</h2>
+          <h2 className="text-lg font-semibold">Suas Apostas</h2>
         </div>
         {userBets.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No bets placed yet
+            Nenhuma aposta realizada ainda
           </div>
         ) : (
           userBets.map((bet) => (
@@ -32,7 +32,7 @@ export default function UserBetsTab({ userBets, isRaceFinished }) {
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-semibold text-sm">{bet.amount} points</p>
+                <p className="font-semibold text-sm">{bet.amount} pontos</p>
                 <Badge
                   variant={bet.status === "won" ? "success" : bet.status === "lost" ? "destructive" : "outline"}
                   className="text-xs"

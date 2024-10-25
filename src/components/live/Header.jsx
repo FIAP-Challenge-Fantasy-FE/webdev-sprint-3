@@ -49,7 +49,7 @@ export default function LivePageHeader() {
       <div className="flex h-16 items-center justify-between px-4 sm:px-8">
         <Link href="/" className="flex items-center space-x-2">
           <Zap className="h-6 w-6 text-primary" />
-          <span className="hidden font-bold sm:inline-block text-primary">Formula E Live</span>
+          <span className="hidden font-bold sm:inline-block text-primary">Fórmula E Ao Vivo</span>
         </Link>
         <div className="flex items-center space-x-4">
           <DropdownMenu>

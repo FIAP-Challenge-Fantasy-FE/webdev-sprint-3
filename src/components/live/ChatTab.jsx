@@ -30,7 +30,7 @@ export default function ChatTab({ chatMessages, onSendMessage, isUserLoggedIn, s
     >
       <div className="flex items-center space-x-2 mb-4">
         <MessageSquare className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Race Chat</h2>
+        <h2 className="text-lg font-semibold">Chat da Corrida</h2>
       </div>
       <ScrollArea className="flex-grow mb-4">
         {chatMessages.map((message) => (

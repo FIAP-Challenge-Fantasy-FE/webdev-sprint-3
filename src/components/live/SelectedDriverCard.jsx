@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -41,9 +41,16 @@ export default function SelectedDriverCard({
     return [...drivers].sort((a, b) => a.name.localeCompare(b.name));
   }, [drivers]);
 
+  // **Add this useEffect to initialize selectedDriver**
+  useEffect(() => {
+    if (!selectedDriver && sortedDrivers.length > 0) {
+      setSelectedDriver(sortedDrivers[0]);
+    }
+  }, [selectedDriver, sortedDrivers, setSelectedDriver]);
+
   const selectNextDriver = useCallback(() => {
     const currentIndex = sortedDrivers.findIndex(
-      (d) => d.name === selectedDriver.name
+      (d) => d.name === selectedDriver?.name
     );
     const nextIndex = (currentIndex + 1) % sortedDrivers.length;
     setSelectedDriver(sortedDrivers[nextIndex]);
@@ -51,9 +58,10 @@ export default function SelectedDriverCard({
 
   const selectPreviousDriver = useCallback(() => {
     const currentIndex = sortedDrivers.findIndex(
-      (d) => d.name === selectedDriver.name
+      (d) => d.name === selectedDriver?.name
     );
-    const previousIndex = (currentIndex - 1 + sortedDrivers.length) % sortedDrivers.length;
+    const previousIndex =
+      (currentIndex - 1 + sortedDrivers.length) % sortedDrivers.length;
     setSelectedDriver(sortedDrivers[previousIndex]);
   }, [sortedDrivers, selectedDriver, setSelectedDriver]);
 
@@ -80,9 +88,13 @@ export default function SelectedDriverCard({
   );
 
   const selectedDriverData = useMemo(
-    () => getDriverData(selectedDriver.name),
-    [getDriverData, selectedDriver.name]
+    () => (selectedDriver ? getDriverData(selectedDriver.name) : null),
+    [getDriverData, selectedDriver]
   );
+
+  if (!selectedDriverData) {
+    return null; // Or render a loading indicator or placeholder
+  }
 
   return (
     <ErrorBoundary
@@ -125,7 +137,8 @@ export default function SelectedDriverCard({
                     value={selectedDriver.name}
                     onValueChange={(value) =>
                       setSelectedDriver(
-                        sortedDrivers.find((d) => d.name === value) || sortedDrivers[0]
+                        sortedDrivers.find((d) => d.name === value) ||
+                          sortedDrivers[0]
                       )
                     }
                   >
@@ -161,7 +174,7 @@ export default function SelectedDriverCard({
                 <DriverStat
                   icon={
                     <Gauge className="w-5 h-5 text-primary dark:text-primary-light" />
-                  } // Speed icon
+                  }
                   label="Speed"
                   value={selectedDriverData.speed}
                   unit="km/h"
@@ -170,7 +183,7 @@ export default function SelectedDriverCard({
                 <DriverStat
                   icon={
                     <Zap className="w-5 h-5 text-primary dark:text-primary-light" />
-                  } // Energy Efficiency icon
+                  }
                   label="Energy Efficiency"
                   value={selectedDriverData.energyManagement.efficiency}
                   unit="%"
@@ -179,7 +192,7 @@ export default function SelectedDriverCard({
                 <DriverStat
                   icon={
                     <Gauge className="w-5 h-5 text-primary dark:text-primary-light rotate-45" />
-                  } // Consistency icon
+                  }
                   label="Consistency"
                   value={selectedDriverData.performance.consistency}
                   unit="%"
@@ -188,7 +201,7 @@ export default function SelectedDriverCard({
                 <DriverStat
                   icon={
                     <ChevronRight className="w-5 h-5 text-primary dark:text-primary-light" />
-                  } // Racecraft icon
+                  }
                   label="Racecraft"
                   value={selectedDriverData.performance.racecraft}
                   unit="%"

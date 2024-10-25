@@ -8,12 +8,12 @@ export default function RaceDashboard({ showFinalDashboard, setShowFinalDashboar
     <Dialog open={showFinalDashboard} onOpenChange={setShowFinalDashboard}>
       <DialogContent className="max-w-4xl  max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Race Dashboard</DialogTitle>
+          <DialogTitle>Dashboard da Corrida</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Final Results</CardTitle>
+              <CardTitle>Resultados Finais</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[300px]">
@@ -33,7 +33,7 @@ export default function RaceDashboard({ showFinalDashboard, setShowFinalDashboar
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Lap Time Progression</CardTitle>
+              <CardTitle>Progressão do Tempo de Volta</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -58,7 +58,7 @@ export default function RaceDashboard({ showFinalDashboard, setShowFinalDashboar
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Energy Management</CardTitle>
+              <CardTitle>Gerenciamento de Energia</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -76,7 +76,7 @@ export default function RaceDashboard({ showFinalDashboard, setShowFinalDashboar
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Overtaking Analysis</CardTitle>
+              <CardTitle>Análise de Ultrapassagens</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>

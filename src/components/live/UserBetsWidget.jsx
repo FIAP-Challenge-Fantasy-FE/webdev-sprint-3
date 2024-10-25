@@ -20,16 +20,16 @@ export default function UserBetsWidget({ isRaceFinished }) {
 
   const handlePlaceBet = async (betType, betDriver, betAmount) => {
     if (!user) {
-      showToast('Please log in to place a bet', 'error')
+      showToast('Por favor, faça login para fazer uma aposta', 'error')
       return
     }
     try {
       const betMultiplier = calculateBetMultiplier(betType, betDriver)
       await placeBet(betType, betDriver, betAmount, betMultiplier)
-      showToast('Bet placed successfully', 'success')
+      showToast('Aposta realizada com sucesso', 'success')
       setShowBettingForm(false)
     } catch (error) {
-      showToast('Failed to place bet. Please try again.', 'error')
+      showToast('Falha ao fazer a aposta. Por favor, tente novamente.', 'error')
     }
   }
 
@@ -46,7 +46,7 @@ export default function UserBetsWidget({ isRaceFinished }) {
             <CardTitle className="flex items-center justify-between text-2xl font-bold text-primary dark:text-primary-light">
               <span className="flex items-center">
                 <DollarSign className="w-6 h-6 mr-2" />
-                {showBettingForm ? 'Place a New Bet' : 'Your Bets'}
+                {showBettingForm ? 'Fazer uma Nova Aposta' : 'Suas Apostas'}
               </span>
               {!showBettingForm ? (
                 <Button
@@ -64,7 +64,7 @@ export default function UserBetsWidget({ isRaceFinished }) {
                   onClick={() => setShowBettingForm(false)}
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  Voltar
                 </Button>
               )}
             </CardTitle>

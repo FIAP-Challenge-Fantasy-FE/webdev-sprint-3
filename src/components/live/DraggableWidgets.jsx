@@ -198,77 +198,77 @@ export default function DraggableWidgets({
   );
 
   return (
-    <ResponsiveGridLayout
-      className="layout"
-      layouts={layouts}
-      breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-      cols={{ lg: 12, md: 12, sm: 6 }}
-      rowHeight={30}
-      onLayoutChange={onLayoutChange}
-      isDraggable
-      isResizable
-      margin={[16, 16]}
-      containerPadding={[16, 16]}
-      preventCollision={false}
-      compactType="vertical"
-      draggableHandle=".cursor-move"
-    >
-      <div
-        key="driver"
-        className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
+    <div className="sm:px-12 sm:py-8">
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={layouts}
+        breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+        cols={{ lg: 12, md: 12, sm: 6 }}
+        rowHeight={30}
+        onLayoutChange={onLayoutChange}
+        isDraggable
+        isResizable
+        margin={[16, 16]}
+        containerPadding={[0, 0]}
+        preventCollision={false}
+        compactType="vertical"
+        draggableHandle=".cursor-move"
       >
-        <WidgetHeader icon={<User className="w-4 h-4" />} title="Selected Driver" />
-        <div className="overflow-auto h-full">
-          <SelectedDriverCard
-            selectedDriver={selectedDriver}
-            drivers={drivers}
-            setSelectedDriver={setSelectedDriver}
-            raceData={raceData}
-          />
-        </div>
-      </div>
-      <div
-        key="userBets"
-        className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
-      >
-        <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Your Bets" />
-        <div className="overflow-auto h-full">
-          <UserBetsWidget isRaceFinished={isRaceFinished} />
-        </div>
-      </div>
-      <div
-        key="dashboard"
-        className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
-      >
-        <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Race Dashboard" />
         <div
-          className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          onClick={() => setShowFinalDashboard(true)}
+          key="driver"
+          className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-          View detailed race statistics and lap times
+          <WidgetHeader icon={<User className="w-4 h-4" />} title="Selected Driver" />
+          <div className="overflow-auto h-full">
+            <SelectedDriverCard
+              selectedDriver={selectedDriver}
+              drivers={drivers}
+              setSelectedDriver={setSelectedDriver}
+              raceData={raceData}
+            />
+          </div>
         </div>
-      </div>
-      <div
-        key="betting"
-        className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
-      >
-        <WidgetHeader icon={<TrendingUp className="w-4 h-4" />} title="Bet Trendings" />
-        <div className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-          See popular bets and trending drivers
+        <div
+          key="userBets"
+          className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
+        >
+          <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Your Bets" />
+          <div className="overflow-auto h-full">
+            <UserBetsWidget isRaceFinished={isRaceFinished} />
+          </div>
         </div>
-      </div>
-      <div
-        key="createWidget"
-        className="widget-container bg-gray-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-      >
-        <WidgetHeader icon={<PlusCircle className="w-4 h-4" />} title="Create Widget" />
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <Lock className="w-4 h-4 mr-2" />
-          Coming soon: Create custom widgets
+        <div
+          key="dashboard"
+          className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
+        >
+          <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Race Dashboard" />
+          <div
+            className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            onClick={() => setShowFinalDashboard(true)}
+          >
+            View detailed race statistics and lap times
+          </div>
         </div>
-      </div>
-    </ResponsiveGridLayout>
+        <div
+          key="betting"
+          className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
+        >
+          <WidgetHeader icon={<TrendingUp className="w-4 h-4" />} title="Bet Trendings" />
+          <div className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            See popular bets and trending drivers
+          </div>
+        </div>
+        <div
+          key="createWidget"
+          className="widget-container bg-gray-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+        >
+          <WidgetHeader icon={<PlusCircle className="w-4 h-4" />} title="Create Widget" />
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <Lock className="w-4 h-4 mr-2" />
+            Coming soon: Create custom widgets
+          </div>
+        </div>
+      </ResponsiveGridLayout>
+    </div>
   );
 }
-
-
