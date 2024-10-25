@@ -39,7 +39,7 @@ export default function LiveTransmission({ raceTitle, raceSubtitle, viewerCount,
         )}
       </div>
       <div className="p-4 bg-gray-100 dark:bg-gray-800">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between space-y-2 md:space-y-0">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
               {raceTitle}
@@ -48,19 +48,19 @@ export default function LiveTransmission({ raceTitle, raceSubtitle, viewerCount,
               {raceSubtitle}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-start space-x-4 text-xs md:text-base">
             <div className="flex items-center space-x-2">
-              <Flag className="w-5 h-5 text-primary" />
+              <Flag className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Laps</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{lapsCompleted}/{totalLaps}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Laps</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">{lapsCompleted}/{totalLaps}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Clock className="w-5 h-5 text-primary" />
+              <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Elapsed</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{timeElapsed}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Time Elapsed</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">{timeElapsed}</p>
               </div>
             </div>
           </div>
