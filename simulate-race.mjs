@@ -140,40 +140,88 @@ function updateRaceData(raceData, deltaTime) {
   raceStatus.timeElapsed = secondsToTimeString(raceData.elapsedTimeSeconds);
 
   drivers.forEach((driver) => {
-    const baseLapTime = 90;
+    // Calculate lap time based on driver performance and consistency
+    const baseLapTime = 90; // Base lap time in seconds
     const lapSpeedFactor = (220 - driver.performance.averageSpeed) / 20;
     const consistencyFactor = (100 - driver.performance.consistency) / 100;
-    const randomVariation = (Math.random() - 0.5) * 0.5;
-    const lapTimeSeconds = baseLapTime + lapSpeedFactor * 2 + consistencyFactor * 2 + randomVariation;
+    const randomVariation = (Math.random() - 0.5) * 0.2; // Reduced randomness for consistency
+    const lapTimeSeconds =
+      baseLapTime + lapSpeedFactor * 2 + consistencyFactor * 2 + randomVariation;
 
     driver.lapTime = secondsToLapTime(lapTimeSeconds);
-    driver.speed = driver.performance.averageSpeed + (Math.random() - 0.5) * 0.5;
+    driver.speed =
+      driver.performance.averageSpeed + (Math.random() - 0.5) * 0.5;
 
+    // Energy calculations remain the same
     const totalRaceEnergy = 52;
     const baseEnergyUsagePerLap = totalRaceEnergy / raceStatus.totalLaps;
     const efficiencyFactor = (100 - driver.energyManagement.efficiency) / 100;
     const speedFactor = (driver.speed - 180) / 40;
-    const energyUsedThisLap = baseEnergyUsagePerLap * (1 + efficiencyFactor + speedFactor * 0.05);
+    const energyUsedThisLap =
+      baseEnergyUsagePerLap * (1 + efficiencyFactor + speedFactor * 0.05);
     const regenerationThisLap = baseEnergyUsagePerLap * 0.1;
 
-    driver.energy = Math.max(0, driver.energy - energyUsedThisLap + regenerationThisLap);
+    driver.energy = Math.max(
+      0,
+      driver.energy - energyUsedThisLap + regenerationThisLap
+    );
     driver.battery = Math.min((driver.energy / totalRaceEnergy) * 100, 100);
 
-    driver.overtakingData.overtakes += Math.random() < driver.performance.racecraft / 200 ? 1 : 0;
-    driver.overtakingData.defensiveActions += Math.random() < driver.performance.racecraft / 200 ? 1 : 0;
-
-    driver.performance.averageSpeed = Math.max(180, Math.min(220, driver.performance.averageSpeed + (Math.random() - 0.5) * 0.2));
-    driver.performance.consistency = Math.max(70, Math.min(100, driver.performance.consistency + (Math.random() - 0.5) * 0.2));
-    driver.performance.racecraft = Math.max(70, Math.min(100, driver.performance.racecraft + (Math.random() - 0.5) * 0.2));
+    // Update performance parameters slightly over time
+    driver.performance.averageSpeed = Math.max(
+      180,
+      Math.min(220, driver.performance.averageSpeed + (Math.random() - 0.5) * 0.1)
+    );
+    driver.performance.consistency = Math.max(
+      70,
+      Math.min(100, driver.performance.consistency + (Math.random() - 0.5) * 0.1)
+    );
+    driver.performance.racecraft = Math.max(
+      70,
+      Math.min(100, driver.performance.racecraft + (Math.random() - 0.5) * 0.1)
+    );
   });
 
-  drivers.sort((a, b) => lapTimeToSeconds(a.lapTime) - lapTimeToSeconds(b.lapTime));
-  drivers.forEach((driver, index) => { driver.position = index + 1; });
+  // Simulate overtakes between drivers
+  for (let i = drivers.length - 1; i > 0; i--) {
+    const driver = drivers[i];
+    const driverAhead = drivers[i - 1];
 
+    // Calculate overtake probability based on performance and speed difference
+    const performanceDifference =
+      driver.performance.racecraft - driverAhead.performance.racecraft;
+    const speedDifference = driver.speed - driverAhead.speed;
+    const baseOvertakeProbability = 0.02; // Base 2% chance
+    const performanceFactor = performanceDifference / 500; // Adjust for performance difference
+    const speedFactor = speedDifference / 100; // Adjust for speed difference
+    const overtakeProbability =
+      baseOvertakeProbability + performanceFactor + speedFactor;
+
+    if (Math.random() < overtakeProbability) {
+      // Overtake occurs
+      // Swap positions in the array
+      [drivers[i], drivers[i - 1]] = [drivers[i - 1], drivers[i]];
+
+      // Update overtaking data
+      driver.overtakingData.overtakes += 1;
+      driverAhead.overtakingData.defensiveActions += 1;
+    }
+  }
+
+  // Update positions based on the new order
+  drivers.forEach((driver, index) => {
+    driver.position = index + 1;
+  });
+
+  // Update latest lap data
   raceData.latestLapData = {
     lap: raceStatus.lapsCompleted,
     leader: drivers[0].name,
-    gap: lapTimeDifference(drivers[0].lapTime, drivers[1]?.lapTime || drivers[0].lapTime) + 's',
+    gap:
+      lapTimeDifference(
+        drivers[0].lapTime,
+        drivers[1]?.lapTime || drivers[0].lapTime
+      ) + 's',
     drivers: drivers.map((driver) => ({
       name: driver.name,
       position: driver.position,
@@ -184,9 +232,11 @@ function updateRaceData(raceData, deltaTime) {
     })),
   };
 
-  if (raceData.lapAccumulatedTime >= lapTimeToSeconds(drivers[0].lapTime)) {
+  // Check if a lap has been completed
+  if (raceData.lapAccumulatedTime >= lapTimeToSeconds('1:30')) {
+    // Assuming average lap time of 1 minute 30 seconds
     raceStatus.lapsCompleted += 1;
-    raceData.lapAccumulatedTime -= lapTimeToSeconds(drivers[0].lapTime);
+    raceData.lapAccumulatedTime -= lapTimeToSeconds('1:30');
     raceData.lapCompletedFlag = true;
   } else {
     raceData.lapCompletedFlag = false;

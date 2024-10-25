@@ -36,21 +36,26 @@ export default function SelectedDriverCard({
 }) {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Sort drivers by name
+  const sortedDrivers = useMemo(() => {
+    return [...drivers].sort((a, b) => a.name.localeCompare(b.name));
+  }, [drivers]);
+
   const selectNextDriver = useCallback(() => {
-    const currentIndex = drivers.findIndex(
+    const currentIndex = sortedDrivers.findIndex(
       (d) => d.name === selectedDriver.name
     );
-    const nextIndex = (currentIndex + 1) % drivers.length;
-    setSelectedDriver(drivers[nextIndex]);
-  }, [drivers, selectedDriver, setSelectedDriver]);
+    const nextIndex = (currentIndex + 1) % sortedDrivers.length;
+    setSelectedDriver(sortedDrivers[nextIndex]);
+  }, [sortedDrivers, selectedDriver, setSelectedDriver]);
 
   const selectPreviousDriver = useCallback(() => {
-    const currentIndex = drivers.findIndex(
+    const currentIndex = sortedDrivers.findIndex(
       (d) => d.name === selectedDriver.name
     );
-    const previousIndex = (currentIndex - 1 + drivers.length) % drivers.length;
-    setSelectedDriver(drivers[previousIndex]);
-  }, [drivers, selectedDriver, setSelectedDriver]);
+    const previousIndex = (currentIndex - 1 + sortedDrivers.length) % sortedDrivers.length;
+    setSelectedDriver(sortedDrivers[previousIndex]);
+  }, [sortedDrivers, selectedDriver, setSelectedDriver]);
 
   const getDriverData = useCallback(
     (driverName) => {
@@ -82,7 +87,7 @@ export default function SelectedDriverCard({
   return (
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
-      onReset={() => setSelectedDriver(drivers[0])}
+      onReset={() => setSelectedDriver(sortedDrivers[0])}
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -120,7 +125,7 @@ export default function SelectedDriverCard({
                     value={selectedDriver.name}
                     onValueChange={(value) =>
                       setSelectedDriver(
-                        drivers.find((d) => d.name === value) || drivers[0]
+                        sortedDrivers.find((d) => d.name === value) || sortedDrivers[0]
                       )
                     }
                   >
@@ -128,7 +133,7 @@ export default function SelectedDriverCard({
                       <SelectValue placeholder="Select a driver" />
                     </SelectTrigger>
                     <SelectContent>
-                      {drivers.map((driver) => (
+                      {sortedDrivers.map((driver) => (
                         <SelectItem key={driver.name} value={driver.name}>
                           {driver.name}
                         </SelectItem>
