@@ -11,22 +11,20 @@ import { DollarSign } from "lucide-react"
 import BettingForm from './BettingForm'
 import { useMediaQuery } from '@/hooks/use-media-query'
 
-
-export default function BettingCard({ isRaceFinished, onPlaceBet, setShowLoginDialog }) {
-  
-  const { betOptions, nextLapBetOptions, drivers } = useRace()
+export default function BettingCard({ isRaceFinished, setShowLoginDialog }) {
+  const { betOptions, nextLapBetOptions, drivers, raceStatus } = useRace()
   const { userProfile } = useUser()
-  const { calculateBetMultiplier } = useBetting()
+  const { placeBet } = useBetting()
   const [openBetting, setOpenBetting] = useState(false)
   const isDesktop = useMediaQuery("(min-width: 768px)")
 
-  const handlePlaceBet = async (betType, betDriver, betAmount, betMultiplier) => {
+  const handlePlaceBet = async (betType, betDriver, betAmount) => {
     if (!userProfile) {
       setShowLoginDialog(true)
       return
     }
     try {
-      await onPlaceBet(betType, betDriver, betAmount, betMultiplier)
+      await placeBet(betType, betDriver, betAmount)
       setOpenBetting(false)
     } catch (error) {
       console.error("Error placing bet:", error)
@@ -70,12 +68,11 @@ export default function BettingCard({ isRaceFinished, onPlaceBet, setShowLoginDi
                 </DialogDescription>
               </DialogHeader>
               <BettingForm
-                betOptions={betOptions}
-                nextLapBetOptions={nextLapBetOptions}
+                betOptions={[...betOptions, ...nextLapBetOptions]}
                 drivers={drivers}
                 userPoints={userProfile?.points || 0}
                 onPlaceBet={handlePlaceBet}
-                calculateBetMultiplier={calculateBetMultiplier}
+                currentLap={raceStatus.lapsCompleted}
               />
             </DialogContent>
           </BettingDialog>

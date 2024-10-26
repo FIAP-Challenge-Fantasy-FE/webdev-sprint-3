@@ -1,130 +1,106 @@
-import { useState, useEffect } from 'react'
-import { useRace } from '@/contexts/RaceContext'
-import { useUser } from '@/hooks/useUser'
-import { useToastContext } from '@/contexts/ToastContext'
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect, useCallback } from 'react'
+import { collection, doc, addDoc, updateDoc, increment, query, where, onSnapshot } from 'firebase/firestore'
+import { getDatabase, ref, get } from 'firebase/database'
 import { db } from '@/lib/firebase'
+import { useToastContext } from '@/contexts/ToastContext'
+import { useUser } from '@/hooks/useUser'
+import { useRace } from '@/contexts/RaceContext'
 
 export const useBetting = () => {
-  const { currentRaceId, drivers } = useRace()
-  const { user, userProfile } = useUser()
   const { showToast } = useToastContext()
+  const { user, userProfile } = useUser()
+  const { currentRaceId, raceStatus } = useRace()
   const [userBets, setUserBets] = useState([])
 
   useEffect(() => {
-    if (!currentRaceId || !user) return
+    if (!user || !currentRaceId) return
 
-    const userBetsQuery = query(
-      collection(db, "races", currentRaceId, "userBets"),
-      where("userId", "==", user.uid),
-      orderBy("timestamp", "desc")
-    )
+    const userBetsRef = collection(db, "races", currentRaceId, "userBets")
+    const userBetsQuery = query(userBetsRef, where("userId", "==", user.uid))
 
-    const nextLapBetsQuery = query(
-      collection(db, "races", currentRaceId, "nextLapBets"),
-      where("userId", "==", user.uid),
-      orderBy("timestamp", "desc")
-    )
-
-    const unsubUserBets = onSnapshot(userBetsQuery, (snapshot) => {
-      const bets = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      setUserBets((prevBets) => [...prevBets.filter((bet) => bet.type.startsWith("nextLap")), ...bets])
+    const unsubscribe = onSnapshot(userBetsQuery, (snapshot) => {
+      const bets = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setUserBets(bets)
+    }, (error) => {
+      console.error('Error in userBets listener:', error)
     })
 
-    const unsubNextLapBets = onSnapshot(nextLapBetsQuery, (snapshot) => {
-      const nextLapBets = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      setUserBets((prevBets) => [...prevBets.filter((bet) => !bet.type.startsWith("nextLap")), ...nextLapBets])
-    })
+    return () => unsubscribe()
+  }, [user, currentRaceId])
 
-    return () => {
-      unsubUserBets()
-      unsubNextLapBets()
+  const fetchBetMultiplier = useCallback(async (raceId, betType, driverName) => {
+    const database = getDatabase()
+    try {
+      const driverRef = ref(database, `races/${raceId}/drivers`)
+      const snapshot = await get(driverRef)
+      if (snapshot.exists()) {
+        const driversData = snapshot.val()
+        const driverData = Object.values(driversData).find(driver => driver.name === driverName)
+        if (!driverData) {
+          console.error(`Driver ${driverName} not found in race ${raceId}`)
+          return 1
+        }
+        const multiplier = driverData.betMultipliers?.[betType]
+        if (multiplier) {
+          return multiplier
+        } else {
+          console.error(`Multiplier for betType ${betType} not found for driver ${driverName}`)
+          return 1
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bet multiplier:', error)
     }
-  }, [currentRaceId, user])
+    return 1 // Default multiplier if fetching fails
+  }, [])
 
-  const placeBet = async (betType, betDriver, betAmount, betMultiplier) => {
-    if (!user || !currentRaceId || !userProfile) {
-      showToast('User not authenticated or race not available', 'error')
-      throw new Error('User not authenticated or race not available')
+  const placeBet = useCallback(async (betType, betDriver, betAmount) => {
+    if (!user) throw new Error('User is not authenticated')
+    if (!userProfile) throw new Error('User profile not loaded')
+    if (!currentRaceId) throw new Error('Race not available')
+
+    const amount = parseInt(betAmount, 10)
+    if (isNaN(amount) || amount <= 0) {
+      showToast('Invalid bet amount', 'error')
+      throw new Error('Invalid bet amount')
     }
 
-    if (betAmount > userProfile.points) {
+    if (amount > userProfile.points) {
       showToast('Insufficient points', 'error')
       throw new Error('Insufficient points')
     }
 
-    const isNextLapBet = betType.startsWith("nextLap")
+    const betMultiplier = await fetchBetMultiplier(currentRaceId, betType, betDriver)
+
     const newBet = {
       userId: user.uid,
-      type: betType,
-      driver: betDriver,
-      amount: betAmount,
+      type: betType,           // Ensure this matches the expected type field
+      driver: betDriver,       // Driver's name
+      amount: amount,
       multiplier: betMultiplier,
-      status: "pending",
+      status: 'pending',       // Set initial status to 'pending'
       points: 0,
-      timestamp: serverTimestamp(),
+      timestamp: new Date(),
+    }
+
+    if (betType.startsWith('nextLap')) {
+      newBet.lap = raceStatus.lapsCompleted + 1
     }
 
     try {
-      await addDoc(collection(db, "races", currentRaceId, isNextLapBet ? "nextLapBets" : "userBets"), newBet)
-
+      await addDoc(collection(db, "races", currentRaceId, "userBets"), newBet)
       const userRef = doc(db, "users", user.uid)
-      await updateDoc(userRef, {
-        points: increment(-betAmount),
-      })
-
-      const trendDocRef = doc(db, "races", currentRaceId, "bettingTrends", betDriver)
-      await updateDoc(trendDocRef, {
-        bets: increment(betAmount),
-      })
-
+      await updateDoc(userRef, { points: increment(-amount) })
       showToast('Bet placed successfully', 'success')
-      return true
     } catch (error) {
       console.error("Error placing bet:", error)
-      showToast('Error placing bet. Please try again.', 'error')
+      showToast('Failed to place bet. Please try again.', 'error')
       throw error
     }
-  }
+  }, [user, userProfile, currentRaceId, raceStatus, fetchBetMultiplier, showToast])
 
-  const calculateBetMultiplier = (betType, driverName) => {
-    const driver = drivers.find((d) => d.name === driverName)
-    if (!driver || !betType) return 1
-
-    let baseDifficulty = 1
-    const isNextLapBet = betType.startsWith("nextLap")
-    const actualBetType = isNextLapBet ? betType.slice(7).toLowerCase() : betType
-
-    switch (actualBetType) {
-      case "winner":
-        baseDifficulty = 10 - (driver.position / drivers.length) * 5
-        break
-      case "fastestlap":
-        baseDifficulty = 5
-        break
-      case "podiumfinish":
-        baseDifficulty = 7 - (driver.position / drivers.length) * 3
-        break
-      case "topfive":
-        baseDifficulty = 5 - (driver.position / drivers.length) * 2
-        break
-      case "overtakes":
-        baseDifficulty = 4
-        break
-      case "energyefficiency":
-        baseDifficulty = 3
-        break
-      default:
-        baseDifficulty = 2
-    }
-
-    if (isNextLapBet) {
-      baseDifficulty *= 1.5 // Increase difficulty for next lap bets
-    }
-
-    const randomFactor = 0.8 + Math.random() * 0.4 // Random factor between 0.8 and 1.2
-    return Math.max(1.1, +(baseDifficulty * randomFactor).toFixed(2))
-  }
-
-  return { userBets, placeBet, calculateBetMultiplier }
+  return { userBets, placeBet, fetchBetMultiplier }
 }

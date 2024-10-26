@@ -3,8 +3,12 @@ import { motion } from 'framer-motion';
 import { Clock, Flag } from 'lucide-react';
 
 const formatTime = (timeString) => {
-  const [, minutes, seconds] = timeString.split(':');
-  return `${minutes}:${seconds}`;
+  const [hours, minutes, seconds] = timeString.split(':');
+  if (parseInt(hours) === 0) {
+    return `${minutes}:${seconds}`;
+  } else {
+    return `${hours}:${minutes}:${seconds}`;
+  }
 };
 
 const RaceProgress = ({ currentLap, totalLaps, elapsedTime, isRaceFinished }) => {

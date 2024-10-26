@@ -12,24 +12,22 @@ import { motion } from 'framer-motion'
 
 export default function UserBetsWidget({ isRaceFinished }) {
   const [showBettingForm, setShowBettingForm] = useState(false)
-  const { userBets, placeBet, calculateBetMultiplier } = useBetting()
-  const { drivers } = useRace()
-  const { user } = useUser()
+  const { userBets, placeBet } = useBetting()
+  const { user, userProfile, updateUserPoints } = useUser()
   const { showToast } = useToastContext()
-  
 
   const handlePlaceBet = async (betType, betDriver, betAmount) => {
     if (!user) {
-      showToast('Por favor, faça login para fazer uma aposta', 'error')
+      showToast('Por favor, faça login para apostar', 'error')
       return
     }
     try {
-      const betMultiplier = calculateBetMultiplier(betType, betDriver)
-      await placeBet(betType, betDriver, betAmount, betMultiplier)
-      showToast('Aposta realizada com sucesso', 'success')
+      await placeBet(betType, betDriver, betAmount)
       setShowBettingForm(false)
+      // Update points after placing a bet
+      await updateUserPoints(user.uid, -betAmount)
     } catch (error) {
-      showToast('Falha ao fazer a aposta. Por favor, tente novamente.', 'error')
+      showToast('Falha ao fazer aposta. Tente novamente.', 'error')
     }
   }
 
@@ -55,7 +53,7 @@ export default function UserBetsWidget({ isRaceFinished }) {
                   disabled={isRaceFinished}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  New Bet
+                  Nova Aposta
                 </Button>
               ) : (
                 <Button
@@ -74,13 +72,13 @@ export default function UserBetsWidget({ isRaceFinished }) {
               <CompactBettingForm
                 onPlaceBet={handlePlaceBet}
                 isRaceFinished={isRaceFinished}
-                drivers={drivers}
                 onCancel={() => setShowBettingForm(false)}
               />
             ) : (
               <UserBetsTab
                 userBets={userBets}
                 isRaceFinished={isRaceFinished}
+                userPoints={userProfile?.points || 0}
                 compact={true}
               />
             )}

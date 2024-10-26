@@ -19,10 +19,12 @@ import UserBetsTab from "@/components/live/UserBetsTab";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer"
 import CompactBettingForm from "@/components/live/CompactBettingForm";
 import DraggableWidgets from "@/components/live/DraggableWidgets";
+import { doc, updateDoc, increment } from "firebase/firestore";
+import { db as firestore } from "@/lib/firebase"; // Ensure this import is correct
 
 export default function LivePage() {
   const { raceData, drivers, isRaceFinished, isLoading, error, currentRaceId } = useRace();
-  const { user, loading: userLoading } = useUser();
+  const { user, userProfile, loading: userLoading } = useUser(); // Destructure userProfile
   const viewerCount = useRaceViewers(currentRaceId);
 
   const { userBets, placeBet, calculateBetMultiplier } = useBetting()
@@ -37,6 +39,8 @@ export default function LivePage() {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const [showBettingDrawer, setShowBettingDrawer] = useState(false)
   const [showBettingForm, setShowBettingForm] = useState(false);
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [hasSentFirstMessage, setHasSentFirstMessage] = useState(false);
 
   useEffect(() => {
     if (drivers.length > 0 && !selectedDriver) {
@@ -84,9 +88,29 @@ export default function LivePage() {
       message,
       avatar: user?.photoURL || '',
       timestamp: new Date()
+    };
+    setChatMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    if (!hasSentFirstMessage) {
+      setHasSentFirstMessage(true);
+      if (user) {
+        console.log(user);
+        awardPoints(user.uid, 500);
+        showToast('You received 500 points for your first chat message!', 'success');
+      }
     }
-    setChatMessages(prevMessages => [...prevMessages, newMessage])
-  }
+  };
+
+  const awardPoints = async (userId, points) => {
+    try {
+      const userRef = doc(firestore, "users", userId); // Ensure 'db' is correctly used
+      await updateDoc(userRef, {
+        points: increment(points),
+      });
+    } catch (error) {
+      console.error('Error awarding points:', error);
+    }
+  };
 
   const getDrawerHeight = () => {
     if (showBettingForm) return 'h-auto';
@@ -94,6 +118,24 @@ export default function LivePage() {
     if (userBets.length <= 3) return 'h-[50vh]';
     return 'h-[80vh]';
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeSpent((prevTime) => prevTime + 1);
+    }, 1000); // Increment every second
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (timeSpent > 0 && timeSpent % 30 === 0) {
+      // Award 300 points every 30 seconds
+      if (user) {
+        awardPoints(user.uid, 300);
+        showToast('You received 300 points for staying on the page!', 'success');
+      }
+    }
+  }, [timeSpent, user]);
 
   if (isLoading || userLoading) {
     return (
@@ -142,6 +184,7 @@ export default function LivePage() {
                   onSendMessage={handleSendMessage}
                   isUserLoggedIn={!!user}
                   isRaceFinished={isRaceFinished}
+                  drivers={drivers}
                 />
               </TabsContent>
               <TabsContent value="widgets" className="scrollbar-hide">
@@ -188,22 +231,10 @@ export default function LivePage() {
                       onCancel={() => setShowBettingForm(false)}
                     />
                   ) : (
-                    <>
-                      <div className="flex-1 overflow-y-auto">
-                        <UserBetsTab 
-                          userBets={userBets} 
-                          isRaceFinished={isRaceFinished}
-                        />
-                      </div>
-                      <Button
-                        className="mt-4 w-full mb-4"
-                        onClick={() => setShowBettingForm(true)}
-                        disabled={isRaceFinished}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Place New Bet
-                      </Button>
-                    </>
+                    <UserBetsWidget 
+                      isRaceFinished={isRaceFinished}
+                      userPoints={userProfile?.points || 0} // Pass user points
+                    />
                   )}
                 </div>
               </DrawerContent>
@@ -236,6 +267,7 @@ export default function LivePage() {
             onSendMessage={handleSendMessage}
             isUserLoggedIn={!!user}
             isRaceFinished={isRaceFinished}
+            drivers={drivers}
           />
         </div>
       )}

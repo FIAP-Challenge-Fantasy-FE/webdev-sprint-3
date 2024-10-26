@@ -15,7 +15,8 @@ export default function Sidebar({
   setShowLoginDialog,
   onSendMessage,
   isUserLoggedIn,
-  isRaceFinished
+  isRaceFinished,
+  drivers
 }) {
   return (
     <motion.div
@@ -42,10 +43,12 @@ export default function Sidebar({
               Chat da Corrida
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="leaderboard" className="flex-grow p-0 relative">
-            <div className="h-full">
-              <Leaderboard drivers={raceData?.drivers} isLoading={!raceData} />
-            </div>
+          <TabsContent value="leaderboard" className="flex-grow overflow-y-auto scrollbar-hide">
+            <Leaderboard 
+              drivers={drivers} 
+              isLoading={!raceData} 
+              isRaceFinished={isRaceFinished}
+            />
           </TabsContent>
           <TabsContent value="chat" className="flex-grow p-0">
             <ChatTab

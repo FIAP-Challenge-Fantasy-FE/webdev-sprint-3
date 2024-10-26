@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { auth, db } from '@/lib/firebase'
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, increment } from 'firebase/firestore'
 
 export const useUser = () => {
   const [user, setUser] = useState(null)
@@ -8,17 +8,18 @@ export const useUser = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       setUser(user)
       if (user) {
         await createOrUpdateUserProfile(user)
+        subscribeToUserProfile(user.uid)
       } else {
         setUserProfile(null)
       }
       setLoading(false)
     })
 
-    return () => unsubscribe()
+    return () => unsubscribeAuth()
   }, [])
 
   const createOrUpdateUserProfile = async (user) => {
@@ -30,7 +31,7 @@ export const useUser = () => {
         displayName: user.displayName || '',
         email: user.email || '',
         photoURL: user.photoURL || '',
-        points: 1000,
+        points: 3000,
         createdAt: serverTimestamp(),
       }
       await setDoc(userRef, newProfile)
@@ -43,5 +44,19 @@ export const useUser = () => {
     }
   }
 
-  return { user, userProfile, loading }
+  const subscribeToUserProfile = (userId) => {
+    const userRef = doc(db, "users", userId)
+    return onSnapshot(userRef, (doc) => {
+      setUserProfile(doc.data())
+    })
+  }
+
+  const updateUserPoints = async (userId, points) => {
+    const userRef = doc(db, "users", userId)
+    await updateDoc(userRef, {
+      points: increment(points),
+    })
+  }
+
+  return { user, userProfile, loading, updateUserPoints }
 }

@@ -29,10 +29,12 @@ async function startRaceSimulation() {
 
   let raceRef;
   let raceData;
+  let raceId;
 
   if (ongoingRace) {
     console.log(`Continuing existing race with ID: ${ongoingRace.id}`);
-    raceRef = db.ref(`races/${ongoingRace.id}`);
+    raceId = ongoingRace.id;
+    raceRef = db.ref(`races/${raceId}`);
     const raceSnapshot = await raceRef.once('value');
     raceData = raceSnapshot.val();
 
@@ -61,8 +63,12 @@ async function startRaceSimulation() {
 
     // Create a new race entry in Realtime Database
     raceRef = db.ref('races').push();
+    raceId = raceRef.key;
+    console.log(`New race created with ID: ${raceId}`);
     await raceRef.set(raceData);
   }
+
+  console.log(`Race ID being used: ${raceId}`);
 
   const deltaTime = 0.1; // 100 milliseconds in seconds
 
@@ -71,20 +77,31 @@ async function startRaceSimulation() {
     await updateRealtimeDatabase(raceRef, raceData);
 
     if (raceData.lapCompletedFlag) {
-      await validateNextLapBets(raceRef.key, raceData);
+      await validateNextLapBets(raceId, raceData);
       raceData.lapCompletedFlag = false;
     }
 
-    const totalRaceDurationSeconds = 45 * 60;
-    if (raceData.elapsedTimeSeconds >= totalRaceDurationSeconds && !raceData.extraLapAdded) {
-      raceData.extraLapAdded = true;
-      console.log('Adding final lap after 45 minutes');
-    } else if (raceData.extraLapAdded && raceData.lapCompletedFlag) {
+    // Check if the race should end
+    console.log(`Current lap: ${raceData.raceStatus.lapsCompleted}/${raceData.raceStatus.totalLaps}`);
+    if (raceData.raceStatus.lapsCompleted >= raceData.raceStatus.totalLaps) {
+      console.log(`Race ${raceId} is ending. Clearing interval...`);
       clearInterval(interval);
-      await completeRace(raceRef.key, raceData);
-      console.log('Race simulation completed');
+      try {
+        await completeRace(raceId, raceData);
+      } catch (error) {
+        console.error(`Error completing race ${raceId}:`, error);
+      } finally {
+        console.log(`Race ${raceId} simulation completed. Exiting in 5 seconds...`);
+        setTimeout(() => {
+          console.log(`Exiting process for race ${raceId}`);
+          process.exit(0);
+        }, 5000); // Wait for 5 seconds before exiting
+      }
     }
   }, 100); // Update every 100 milliseconds
+
+  // Add this line to keep the Node.js process running
+  await new Promise(resolve => {}); 
 }
 
 function initializeDrivers(drivers) {
@@ -339,7 +356,7 @@ async function validateNextLapBets(raceId, raceData) {
   for (const betDoc of nextLapBetsSnapshot.docs) {
     const bet = betDoc.data();
     let betResult = 'lost';
-    let pointsChange = -bet.amount;
+    let pointsChange = 0; // Initialize to 0 instead of -bet.amount
 
     const driver = raceData.drivers.find((d) => d.name === bet.driver);
 
@@ -377,7 +394,7 @@ async function validateNextLapBets(raceId, raceData) {
       const userDoc = await transaction.get(userRef);
       let userPoints = userDoc.data().points || 0;
 
-      userPoints = Math.max(userPoints + pointsChange, 0);
+      userPoints += pointsChange; // Only add points if won, don't subtract if lost
       transaction.update(betRef, { status: betResult, points: pointsChange });
       transaction.update(userRef, { points: userPoints });
     });
@@ -385,65 +402,102 @@ async function validateNextLapBets(raceId, raceData) {
 }
 
 async function completeRace(raceId, raceData) {
-  const betsSnapshot = await firestore.collection('races').doc(raceId).collection('userBets').get();
-  const winner = raceData.drivers.find((driver) => driver.position === 1).name;
+  console.log(`Starting to complete race with ID: ${raceId}`);
+  try {
+    const winner = raceData.drivers.find((driver) => driver.position === 1).name;
+    console.log(`Winner of race ${raceId}: ${winner}`);
 
-  if (betsSnapshot.empty) return;
+    const betsSnapshot = await firestore.collection('races').doc(raceId).collection('userBets').get();
+    console.log(`Fetched ${betsSnapshot.size} bets for race ${raceId}`);
 
-  for (const betDoc of betsSnapshot.docs) {
-    const bet = betDoc.data();
-    let betResult = 'lost';
-    let pointsChange = -bet.amount;
+    if (betsSnapshot.empty) {
+      console.log(`No bets found for race ${raceId}`);
+    } else {
+      // Process bets (existing code)
+      for (const betDoc of betsSnapshot.docs) {
+        const bet = betDoc.data();
+        let betResult = 'lost';
+        let pointsChange = 0; // Initialize to 0 instead of -bet.amount
 
-    const driver = raceData.drivers.find((d) => d.name === bet.driver);
+        const driver = raceData.drivers.find((d) => d.name === bet.driver);
 
-    if (driver) {
-      switch (bet.type) {
-        case 'winner':
-          if (driver.name === winner) {
-            betResult = 'won';
-            pointsChange = Math.floor(bet.amount * bet.multiplier);
+        if (driver) {
+          switch (bet.type) {
+            case 'winner':
+              if (driver.name === winner) {
+                betResult = 'won';
+                pointsChange = Math.floor(bet.amount * bet.multiplier);
+              }
+              break;
+            case 'fastestLap':
+              const fastestLapDriver = raceData.drivers.reduce((prev, curr) =>
+                lapTimeToSeconds(prev.lapTime) < lapTimeToSeconds(curr.lapTime) ? prev : curr
+              );
+              if (driver.name === fastestLapDriver.name) {
+                betResult = 'won';
+                pointsChange = Math.floor(bet.amount * bet.multiplier);
+              }
+              break;
+            case 'podiumFinish':
+              if (driver.position <= 3) {
+                betResult = 'won';
+                pointsChange = Math.floor(bet.amount * bet.multiplier);
+              }
+              break;
+            case 'topFive':
+              if (driver.position <= 5) {
+                betResult = 'won';
+                pointsChange = Math.floor(bet.amount * bet.multiplier);
+              }
+              break;
+            default:
+              betResult = 'lost';
           }
-          break;
-        case 'fastestLap':
-          const fastestLapDriver = raceData.drivers.reduce((prev, curr) =>
-            lapTimeToSeconds(prev.lapTime) < lapTimeToSeconds(curr.lapTime) ? prev : curr
-          );
-          if (driver.name === fastestLapDriver.name) {
-            betResult = 'won';
-            pointsChange = Math.floor(bet.amount * bet.multiplier);
-          }
-          break;
-        case 'podiumFinish':
-          if (driver.position <= 3) {
-            betResult = 'won';
-            pointsChange = Math.floor(bet.amount * bet.multiplier);
-          }
-          break;
-        case 'topFive':
-          if (driver.position <= 5) {
-            betResult = 'won';
-            pointsChange = Math.floor(bet.amount * bet.multiplier);
-          }
-          break;
-        default:
-          betResult = 'lost';
+        }
+
+        await firestore.runTransaction(async (transaction) => {
+          const betRef = betDoc.ref;
+          const userRef = firestore.collection('users').doc(bet.userId);
+          const userDoc = await transaction.get(userRef);
+          let userPoints = userDoc.data().points || 0;
+
+          userPoints += pointsChange; // Only add points if won, don't subtract if lost
+          transaction.update(betRef, { status: betResult, points: pointsChange });
+          transaction.update(userRef, { points: userPoints });
+        });
       }
     }
 
-    await firestore.runTransaction(async (transaction) => {
-      const betRef = betDoc.ref;
-      const userRef = firestore.collection('users').doc(bet.userId);
-      const userDoc = await transaction.get(userRef);
-      let userPoints = userDoc.data().points || 0;
-
-      userPoints = Math.max(userPoints + pointsChange, 0);
-      transaction.update(betRef, { status: betResult, points: pointsChange });
-      transaction.update(userRef, { points: userPoints });
+    console.log(`Updating Realtime Database for race ${raceId}`);
+    const raceRef = db.ref(`races/${raceId}`);
+    await raceRef.update({
+      status: 'finished',
+      winner: winner,
+      endTime: Date.now(),
     });
-  }
 
-  await firestore.collection('races').doc(raceId).update({ status: 'finished', winner: winner });
+    console.log(`Race ${raceId} completed. Winner: ${winner}`);
+  } catch (error) {
+    console.error(`Error completing race ${raceId}:`, error);
+  }
 }
 
-startRaceSimulation();
+// Wrap the startRaceSimulation call in an async function
+async function run() {
+  try {
+    await startRaceSimulation();
+  } catch (error) {
+    console.error('Error in race simulation:', error);
+    process.exit(1);
+  }
+}
+
+run();
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Application specific logging, throwing an error, or other logic here
+});
+
+// Place this at the end of your file, after the `run()` call
+

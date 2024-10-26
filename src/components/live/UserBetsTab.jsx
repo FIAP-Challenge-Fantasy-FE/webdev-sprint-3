@@ -1,8 +1,21 @@
+import React from 'react'
 import { Badge } from "@/components/ui/badge"
-import { DollarSign } from "lucide-react"
 import { motion } from 'framer-motion'
 
-export default function UserBetsTab({ userBets, isRaceFinished }) {
+const UserBetsTab = ({ userBets, isRaceFinished, userPoints }) => {
+  const formatBetType = (type) => {
+    switch (type) {
+      case 'winner': return 'Race Winner'
+      case 'podiumFinish': return 'Podium Finish'
+      case 'fastestLap': return 'Fastest Lap'
+      case 'topFive': return 'Top 5 Finish'
+      case 'nextLapFastestLap': return 'Next Lap Fastest'
+      case 'nextLapOvertakes': return 'Next Lap Overtakes'
+      case 'nextLapEnergyEfficiency': return 'Next Lap Energy Efficiency'
+      default: return type
+    }
+  }
+
   return (
     <div className="overflow-y-auto scrollbar-hide">
       <motion.div
@@ -11,9 +24,8 @@ export default function UserBetsTab({ userBets, isRaceFinished }) {
         transition={{ duration: 0.5 }}
         className="flex flex-col"
       >
-        <div className="flex items-center space-x-2 mb-4">
-          <DollarSign className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Suas Apostas</h2>
+        <div className="mb-4">
+          <h2 className="text-lg font-bold">Seus Pontos: {userPoints}</h2>
         </div>
         {userBets.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -25,13 +37,11 @@ export default function UserBetsTab({ userBets, isRaceFinished }) {
               key={bet.id}
               className="flex items-center justify-between py-3 px-2 border-b last:border-b-0 dark:border-gray-700"
             >
-              <div>
-                <p className="font-semibold text-sm">{bet.type}</p>
-                <p className="text-xs text-muted-foreground">
-                  {bet.driver}
-                </p>
+              <div className="flex flex-col">
+                <p className="font-semibold text-sm">{formatBetType(bet.type)}</p>
+                <p className="text-xs text-muted-foreground">{bet.driver}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 <p className="font-semibold text-sm">{bet.amount} pontos</p>
                 <Badge
                   variant={bet.status === "won" ? "success" : bet.status === "lost" ? "destructive" : "outline"}
@@ -53,3 +63,5 @@ export default function UserBetsTab({ userBets, isRaceFinished }) {
     </div>
   )
 }
+
+export default UserBetsTab

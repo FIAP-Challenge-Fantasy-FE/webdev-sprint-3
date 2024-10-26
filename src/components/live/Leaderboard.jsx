@@ -14,7 +14,7 @@ const formatNumber = (num) => {
   return num;
 };
 
-export default function Leaderboard({ drivers, isLoading = false }) {
+export default function Leaderboard({ drivers, isLoading = false, isRaceFinished = false }) {
   const [openPopoverId, setOpenPopoverId] = useState(null)
   const [hoveredRow, setHoveredRow] = useState(null)
   const [sortedDrivers, setSortedDrivers] = useState([])
@@ -26,11 +26,36 @@ export default function Leaderboard({ drivers, isLoading = false }) {
     }
   }, [drivers]);
 
+  const getPositionColor = (position) => {
+    if (!isRaceFinished) return "";
+    switch (position) {
+      case 1: return "bg-yellow-200 dark:bg-blue-900";
+      case 2: return "bg-gray-200 dark:bg-blue-900";
+      case 3: return "bg-orange-200 dark:bg-blue-900";
+      default: return "";
+    }
+  };
+
+  const getPositionBadge = (position) => {
+    const variants = {
+      1: "default",
+      2: "secondary",
+      3: "outline"
+    };
+    return (
+      <Badge variant={variants[position] || "outline"} className={isRaceFinished ? "text-lg" : ""}>
+        {position}
+      </Badge>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center space-x-2 p-4">
         <Trophy className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Live Leaderboard</h2>
+        <h2 className="text-lg font-semibold">
+          {isRaceFinished ? "Final Results" : "Live Leaderboard"}
+        </h2>
       </div>
       {isLoading ? (
         <div className="flex-grow flex justify-center items-center">
@@ -66,23 +91,23 @@ export default function Leaderboard({ drivers, isLoading = false }) {
                         transition={{ duration: 0.3 }}
                         layout
                         className={`cursor-pointer transition-colors duration-200 ${
+                          getPositionColor(driver.position)
+                        } ${
                           hoveredRow === driver.name ? 'bg-muted/80' : 'hover:bg-muted/50'
                         }`}
                         onMouseEnter={() => setHoveredRow(driver.name)}
                         onMouseLeave={() => setHoveredRow(null)}
                       >
                         <TableCell className="font-medium">
-                          {driver.position <= 3 ? (
-                            <Badge variant={driver.position === 1 ? "default" : driver.position === 2 ? "secondary" : "outline"}>
-                              {driver.position}
-                            </Badge>
-                          ) : (
-                            driver.position
-                          )}
+                          {driver.position <= 3 ? getPositionBadge(driver.position) : driver.position}
                         </TableCell>
-                        <TableCell>{driver.name}</TableCell>
+                        <TableCell className={isRaceFinished && driver.position <= 3 ? "font-semibold" : ""}>
+                          {driver.name}
+                        </TableCell>
                         <TableCell className="text-right">
-                          {formatNumber(driver.points)}
+                          <span className={isRaceFinished && driver.position <= 3 ? "font-semibold" : ""}>
+                            {formatNumber(driver.points)}
+                          </span>
                           {hoveredRow === driver.name && (
                             <Info className="inline-block ml-2 w-4 h-4 text-muted-foreground" />
                           )}

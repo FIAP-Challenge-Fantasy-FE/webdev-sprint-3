@@ -218,7 +218,7 @@ export default function DraggableWidgets({
           key="driver"
           className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-          <WidgetHeader icon={<User className="w-4 h-4" />} title="Selected Driver" />
+          <WidgetHeader icon={<User className="w-4 h-4" />} title="Piloto Selecionado" />
           <div className="overflow-auto h-full">
             <SelectedDriverCard
               selectedDriver={selectedDriver}
@@ -232,7 +232,7 @@ export default function DraggableWidgets({
           key="userBets"
           className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-          <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Your Bets" />
+         
           <div className="overflow-auto h-full">
             <UserBetsWidget isRaceFinished={isRaceFinished} />
           </div>
@@ -241,31 +241,31 @@ export default function DraggableWidgets({
           key="dashboard"
           className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-          <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Race Dashboard" />
+          <WidgetHeader icon={<BarChart2 className="w-4 h-4" />} title="Painel da Corrida" />
           <div
             className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             onClick={() => setShowFinalDashboard(true)}
           >
-            View detailed race statistics and lap times
+            Ver estatísticas detalhadas da corrida e tempos de volta
           </div>
         </div>
         <div
           key="betting"
           className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-          <WidgetHeader icon={<TrendingUp className="w-4 h-4" />} title="Bet Trendings" />
+          <WidgetHeader icon={<TrendingUp className="w-4 h-4" />} title="Tendências de Apostas" />
           <div className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-            See popular bets and trending drivers
+            Ver apostas populares e pilotos em destaque
           </div>
         </div>
         <div
           key="createWidget"
           className="widget-container bg-gray-50 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
         >
-          <WidgetHeader icon={<PlusCircle className="w-4 h-4" />} title="Create Widget" />
+          <WidgetHeader icon={<PlusCircle className="w-4 h-4" />} title="Criar Widget" />
           <div className="flex items-center justify-center h-full text-gray-500">
             <Lock className="w-4 h-4 mr-2" />
-            Coming soon: Create custom widgets
+            Em breve: Crie widgets personalizados
           </div>
         </div>
       </ResponsiveGridLayout>
