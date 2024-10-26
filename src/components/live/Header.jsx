@@ -16,10 +16,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Zap, Sun, Moon, Laptop } from 'lucide-react'
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 
 export default function LivePageHeader() {
   const { setTheme } = useTheme()
-  const { user, userProfile, logout } = useUser()
+  const { user, userProfile, loading } = useUser()
   const [scrolled, setScrolled] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -36,6 +38,26 @@ export default function LivePageHeader() {
   if (!mounted) {
     return null
   }
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      // The useUser hook will automatically update the user state
+    } catch (error) {
+      console.error("Error during Google sign-in:", error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      // The useUser hook will automatically update the user state
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
+  };
 
   return (
     <motion.header
@@ -75,7 +97,7 @@ export default function LivePageHeader() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {user ? (
+          {!loading && (user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -100,16 +122,16 @@ export default function LivePageHeader() {
                   Rank: {userProfile?.rank || 'N/A'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
+                <DropdownMenuItem onClick={handleLogout}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="outline" onClick={() => {/* TODO: Implement login logic */}}>
-              Log in
+            <Button variant="outline" onClick={handleLogin}>
+              Log in with Google
             </Button>
-          )}
+          ))}
         </div>
       </div>
     </motion.header>

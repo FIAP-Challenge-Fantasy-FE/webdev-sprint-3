@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -9,11 +9,13 @@ import { PlusCircle } from 'lucide-react'
 export default function Sidebar({
   raceData,
   chatMessages,
+  userBets,
   isDesktop,
+  onPlaceBet,
   setShowLoginDialog,
   onSendMessage,
   isUserLoggedIn,
-  isRaceFinished,
+  isRaceFinished
 }) {
   return (
     <motion.div
@@ -40,8 +42,10 @@ export default function Sidebar({
               Chat da Corrida
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="leaderboard" className="flex-grow p-0">
-            <Leaderboard drivers={raceData?.drivers} isLoading={!raceData} />
+          <TabsContent value="leaderboard" className="flex-grow p-0 relative">
+            <div className="h-full">
+              <Leaderboard drivers={raceData?.drivers} isLoading={!raceData} />
+            </div>
           </TabsContent>
           <TabsContent value="chat" className="flex-grow p-0">
             <ChatTab

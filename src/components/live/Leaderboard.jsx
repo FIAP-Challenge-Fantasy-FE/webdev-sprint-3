@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trophy, Loader2, Info } from "lucide-react"
-import confetti from 'canvas-confetti'
 
 // Helper function to format numbers
 const formatNumber = (num) => {
@@ -19,38 +18,13 @@ export default function Leaderboard({ drivers, isLoading = false }) {
   const [openPopoverId, setOpenPopoverId] = useState(null)
   const [hoveredRow, setHoveredRow] = useState(null)
   const [sortedDrivers, setSortedDrivers] = useState([])
-  const prevTopThree = useRef([])
-  const isInitialRender = useRef(true)
-
-  const checkTopThreeChanges = useCallback((currentTopThree) => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      prevTopThree.current = currentTopThree;
-      return;
-    }
-
-    const newTopThree = currentTopThree.filter(name => !prevTopThree.current.includes(name));
-
-    if (newTopThree.length > 0) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    }
-
-    prevTopThree.current = currentTopThree;
-  }, []);
 
   useEffect(() => {
     if (drivers && drivers.length > 0) {
       const sorted = [...drivers].sort((a, b) => a.position - b.position);
       setSortedDrivers(sorted);
-
-      const currentTopThree = sorted.slice(0, 3).map(d => d.name);
-      checkTopThreeChanges(currentTopThree);
     }
-  }, [drivers, checkTopThreeChanges]);
+  }, [drivers]);
 
   return (
     <div className="h-full flex flex-col">

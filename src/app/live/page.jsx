@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRace } from "@/contexts/RaceContext";
 import { useRaceViewers } from "@/hooks/useRaceViewers";
 import { useUser } from "@/hooks/useUser";
@@ -145,7 +145,7 @@ export default function LivePage() {
                 />
               </TabsContent>
               <TabsContent value="widgets" className="scrollbar-hide">
-                <div className="p-4 space-y-4">
+                <div className="px-4 space-y-4">
                   <DraggableWidgets
                     selectedDriver={selectedDriver}
                     drivers={drivers}
@@ -170,7 +170,7 @@ export default function LivePage() {
             <Drawer open={showBettingDrawer} onOpenChange={setShowBettingDrawer}>
               <DrawerTrigger asChild>
                 <Button
-                  className="fixed bottom-4 right-4 rounded-full shadow-lg z-50"
+                  className="fixed bottom-4 right-4 rounded-full shadow-lg z-40"
                   size="icon"
                   onClick={() => setShowBettingDrawer(true)}
                 >

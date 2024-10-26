@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { motion } from 'framer-motion'
@@ -7,12 +7,24 @@ import { Users, Clock, Flag } from "lucide-react"
 import RaceProgress from './RaceProgress'
 
 export default function LiveTransmission({ raceTitle, raceSubtitle, viewerCount, isLive, duration, lapsCompleted, totalLaps, timeElapsed }) {
+  const onPlayerReady = useCallback((event) => {
+    // Store the player instance
+    const player = event.target;
+    // Set up an event listener for when the video ends
+    player.addEventListener('onStateChange', (event) => {
+      if (event.data === YouTube.PlayerState.ENDED) {
+        // When the video ends, play it again
+        player.playVideo();
+      }
+    });
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="overflow-hidden sm:px-16 sm:py-8" // Changed to match DraggableWidgets
+      className="overflow-hidden sm:px-16 sm:pt-8 sm:pb-0"
     >
       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}> {/* 16:9 Aspect Ratio */}
         <div className="absolute top-0 left-0 w-full h-full bg-black flex items-center justify-center">
@@ -25,10 +37,11 @@ export default function LiveTransmission({ raceTitle, raceSubtitle, viewerCount,
               playerVars: {
                 autoplay: 1,
                 controls: 1,
-                loop: 1,
                 mute: 1,
+                playsinline: 1,
               }
             }}
+            onReady={onPlayerReady}
           />
         </div>
         {isLive && (
