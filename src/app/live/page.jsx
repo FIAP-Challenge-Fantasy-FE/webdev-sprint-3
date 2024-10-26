@@ -21,6 +21,7 @@ import CompactBettingForm from "@/components/live/CompactBettingForm";
 import DraggableWidgets from "@/components/live/DraggableWidgets";
 import { doc, updateDoc, increment } from "firebase/firestore";
 import { db as firestore } from "@/lib/firebase"; // Ensure this import is correct
+import UserBetsWidget from '@/components/live/UserBetsWidget'; // Adjust the path if necessary
 
 export default function LivePage() {
   const { raceData, drivers, isRaceFinished, isLoading, error, currentRaceId } = useRace();
