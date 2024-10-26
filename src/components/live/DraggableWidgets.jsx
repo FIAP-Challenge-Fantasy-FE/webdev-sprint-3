@@ -232,7 +232,7 @@ export default function DraggableWidgets({
           key="userBets"
           className="widget-container bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden"
         >
-         
+          <WidgetHeader icon={<User className="w-4 h-4" />} title="Apostas do Usuário" />
           <div className="overflow-auto h-full">
             <UserBetsWidget isRaceFinished={isRaceFinished} />
           </div>

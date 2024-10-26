@@ -198,7 +198,7 @@ export default function ChatTab({
     });
 
     return () => unsubscribe();
-  }, [triggerConfetti]); // Add 'triggerConfetti' to the dependency array
+  }, []);
 
   const triggerConfetti = useCallback((messageElement) => {
     if (messageElement && chatContainerRef.current) {
