@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "chat": {
+      ".read": true,
+      ".write": "auth.uid != null"
+    },
+    "status": {
+      ".read": true,
+      ".write": "auth.uid != null"
+    },
+    "races": {
+      ".read": true,
+      ".write": false
+    }
+  }
+}
